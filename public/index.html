@@ -631,18 +631,31 @@
         });
 
         document.getElementById('signup-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const email = document.getElementById('signup-email').value;
-            const password = document.getElementById('signup-password').value;
-            authError.classList.add('hidden');
-            createUserWithEmailAndPassword(auth, email, password)
-                .then((userCredential) => {
-                    const user = userCredential.user;
-                    return fetch('/create-user-record', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ uid: user.uid, email: user.email })
-                    });
+    e.preventDefault();
+    const email = document.getElementById('signup-email').value;
+    const password = document.getElementById('signup-password').value;
+    authError.classList.add('hidden');
+    createUserWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+            const user = userCredential.user;
+
+            // Envia para o seu backend /create-user-record
+            return fetch('/create-user-record', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uid: user.uid, email: user.email })
+            });
+        })
+        .then(response => {
+            if (!response.ok) {
+                console.error("Falha ao criar o perfil do utilizador no banco de dados.");
+            }
+        })
+        .catch(error => {
+            authError.textContent = "Erro ao criar conta. Verifique o e-mail ou tente uma senha mais forte.";
+            authError.classList.remove('hidden');
+        });
+});
                 })
                 .then(response => {
                     if (!response.ok) {
