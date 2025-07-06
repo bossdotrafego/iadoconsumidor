@@ -4,22 +4,39 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import 'dotenv/config';
-
-// NOVOS IMPORTS PARA O FIREBASE ADMIN
 import admin from 'firebase-admin';
 
-// --- Configuração ---
-// CORREÇÃO: Inicializa o Firebase Admin usando as variáveis de ambiente
-// Isto é mais seguro e compatível com o Render.
-admin.initializeApp({
-  credential: admin.credential.cert({
+// --- VERIFICAÇÃO DAS VARIÁVEIS DE AMBIENTE ---
+// Esta verificação garante que o app não vai quebrar se as chaves não forem encontradas.
+const firebaseCreds = {
     projectId: process.env.FIREBASE_PROJECT_ID,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL
-  })
-});
-const db = admin.firestore();
+    privateKey: process.env.FIREBASE_PRIVATE_KEY,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+};
 
+if (!firebaseCreds.projectId || !firebaseCreds.privateKey || !firebaseCreds.clientEmail || !process.env.GOOGLE_API_KEY) {
+    console.error("ERRO FATAL: Uma ou mais variáveis de ambiente (Firebase ou Google API) não estão definidas.");
+    console.error("Verifique se o seu arquivo .env existe e contém todas as chaves necessárias.");
+    process.exit(1); // Encerra o processo com um código de erro.
+}
+
+// --- Configuração do Firebase Admin ---
+try {
+    admin.initializeApp({
+        credential: admin.credential.cert({
+            projectId: firebaseCreds.projectId,
+            // A chave privada precisa ter os caracteres de nova linha (\n) restaurados.
+            privateKey: firebaseCreds.privateKey.replace(/\\n/g, '\n'),
+            clientEmail: firebaseCreds.clientEmail
+        })
+    });
+} catch (error) {
+    console.error("ERRO ao inicializar o Firebase Admin:", error.message);
+    console.error("Verifique se as credenciais no arquivo .env estão corretas.");
+    process.exit(1);
+}
+
+const db = admin.firestore();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
@@ -38,7 +55,7 @@ let vendas = [];
 
 // --- ROTA PRINCIPAL ---
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // --- NOVA ROTA PARA CRIAR O PERFIL DO UTILIZADOR NO BANCO DE DADOS ---
@@ -170,5 +187,5 @@ app.post('/vendas', (req, res) => {
 
 // Iniciar servidor
 app.listen(PORT, () => {
-  console.log(`Servidor a rodar na porta ${PORT}`);
+    console.log(`Servidor a rodar na porta ${PORT}`);
 });

@@ -66,7 +66,7 @@
         </header>
 
         <!-- Main Content -->
-        <main class="flex flex-col md:flex-row container mx-auto px-4 mt-4">
+        <main class="flex flex-col md:flex-row container mx-auto px-4 mt-4 items-start">
             <!-- Left Sidebar - Desktop -->
             <aside id="desktop-sidebar" class="hidden md:block w-full md:w-1/5 lg:w-1/6 bg-blue-900 text-white p-4 rounded-lg mr-4 self-start">
                 
@@ -512,14 +512,18 @@
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- CONFIGURAÇÃO DO FIREBASE (VOCÊ PRECISA PREENCHER) ---
+        // --- CONFIGURAÇÃO DO AMBIENTE ---
+        const backendUrl = 'https://iadoconsumidor.onrender.com';
+
+        // --- CONFIGURAÇÃO DO FIREBASE COM OS SEUS DADOS ---
         const firebaseConfig = {
-            apiKey: "COLE_SUA_API_KEY_AQUI",
-            authDomain: "COLE_SEU_AUTH_DOMAIN_AQUI",
-            projectId: "COLE_SEU_PROJECT_ID_AQUI",
-            storageBucket: "COLE_SEU_STORAGE_BUCKET_AQUI",
-            messagingSenderId: "COLE_SEU_MESSAGING_SENDER_ID_AQUI",
-            appId: "COLE_SEU_APP_ID_AQUI"
+          apiKey: "AIzaSyDMsufTXhP5Tq4IBJkb9N9SUpnrKYSoIlE",
+          authDomain: "ia-do-consumidor.firebaseapp.com",
+          projectId: "ia-do-consumidor",
+          storageBucket: "ia-do-consumidor.appspot.com",
+          messagingSenderId: "960487811924",
+          appId: "1:960487811924:web:59c6c4a8adfc6b3c47f6c1",
+          measurementId: "G-G7J8TJV4QE"
         };
 
         // Inicializa o Firebase
@@ -635,12 +639,11 @@
             const email = document.getElementById('signup-email').value;
             const password = document.getElementById('signup-password').value;
             authError.classList.add('hidden');
+            
             createUserWithEmailAndPassword(auth, email, password)
                 .then((userCredential) => {
                     const user = userCredential.user;
-
-                    // Envia para o seu backend /create-user-record
-                    return fetch('/create-user-record', {
+                    return fetch(`${backendUrl}/create-user-record`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ uid: user.uid, email: user.email })
@@ -648,11 +651,26 @@
                 })
                 .then(response => {
                     if (!response.ok) {
-                        console.error("Falha ao criar o perfil do utilizador no banco de dados.");
+                        return response.json().then(err => { throw new Error(err.error || 'Falha ao criar perfil no backend.') });
                     }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Resposta do backend:", data.message);
                 })
                 .catch(error => {
-                    authError.textContent = "Erro ao criar conta. Verifique o e-mail ou tente uma senha mais forte.";
+                    console.error("Erro no processo de criação de conta:", error);
+                    let message = error.message || "Erro ao criar conta. Verifique o e-mail ou tente uma senha mais forte.";
+                    if (error.code === 'auth/weak-password') {
+                        message = 'A senha é muito fraca. Por favor, use pelo menos 6 caracteres.';
+                    } else if (error.code === 'auth/email-already-in-use') {
+                        message = 'Este e-mail já está sendo utilizado em outra conta.';
+                    } else if (error.code === 'auth/invalid-api-key' || error.code === 'auth/api-key-not-valid.-please-pass-a-valid-api-key.') {
+                        message = 'Chave de API do Firebase inválida. Verifique a configuração no seu código.';
+                    } else if (error.name === 'TypeError') {
+                        message = 'Não foi possível conectar ao servidor. Verifique se o backend está rodando e a URL está correta.';
+                    }
+                    authError.textContent = message;
                     authError.classList.remove('hidden');
                 });
         });
@@ -674,6 +692,7 @@
 
         // --- LÓGICA DAS ABAS (TABS) ---
         function setupTabs(modalElement) {
+            if (!modalElement) return;
             const tabs = modalElement.querySelectorAll('.tab-btn');
             const contents = modalElement.querySelectorAll('.tab-content');
             tabs.forEach(tab => {
@@ -691,12 +710,12 @@
                 });
             });
         }
-        // CORREÇÃO 1: Adicionando a lógica de abas para o modal de login
-        if(loginModal) setupTabs(loginModal);
-        if(reclameModal) setupTabs(reclameModal);
-        if(vagasModal) setupTabs(vagasModal);
-        if(servicosModal) setupTabs(servicosModal);
-        if(vendasModal) setupTabs(vendasModal);
+        
+        setupTabs(loginModal);
+        setupTabs(reclameModal);
+        setupTabs(vagasModal);
+        setupTabs(servicosModal);
+        setupTabs(vendasModal);
 
         // --- FUNÇÕES DO CHAT ---
         function addMessage(message, sender) {
@@ -734,7 +753,7 @@
             chatInput.value = '';
             showTypingIndicator();
             try {
-                const response = await fetch(endpoint, {
+                const response = await fetch(`${backendUrl}${endpoint}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ message: messageText }),
@@ -804,7 +823,7 @@
                 const base64Image = reader.result.split(',')[1];
 
                 try {
-                    const response = await fetch('/chat-golpometro', {
+                    const response = await fetch(`${backendUrl}/chat-golpometro`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ image: base64Image }),
@@ -888,7 +907,6 @@
         }
     </script>
 
-    <!-- Removido o script extra e desnecessário que estava aqui -->
 </body>
 
 </html>
