@@ -896,5 +896,18 @@
             });
         }
     </script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const createAccountBtn = document.getElementById("createAccountBtn");
+    const registerModal = document.getElementById("registerModal");
+    if (createAccountBtn && registerModal) {
+        createAccountBtn.addEventListener("click", () => {
+            registerModal.classList.remove("hidden");
+        });
+    }
+});
+</script>
 </body>
+
 </html>
