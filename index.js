@@ -4,11 +4,12 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import 'dotenv/config';
-
-// NOVOS IMPORTS PARA O FIREBASE ADMIN
 import admin from 'firebase-admin';
-// O ficheiro JSON deve estar na mesma pasta que o index.js
-import serviceAccount from './serviceAccountKey.json' assert { type: 'json' };
+
+// CORREÇÃO: Usando um método mais compatível para importar o JSON
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const serviceAccount = require('./serviceAccountKey.json');
 
 // --- Configuração ---
 admin.initializeApp({
@@ -26,7 +27,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- SIMULAÇÃO DE BANCO DE DADOS (em memória) ---
+// --- Simulação de banco de dados (em memória) ---
 let reclamacoes = [];
 let vagas = [];
 let servicos = [];
@@ -46,10 +47,9 @@ app.post('/create-user-record', async (req, res) => {
     }
 
     try {
-        // Cria um novo documento na coleção 'users' com o ID do utilizador
         await db.collection('users').doc(uid).set({
             email: email,
-            cargo: 'gratuito', // Todo novo utilizador começa como gratuito
+            cargo: 'gratuito',
             criadoEm: admin.firestore.FieldValue.serverTimestamp()
         });
         res.status(201).json({ message: 'Perfil do utilizador criado com sucesso.' });
@@ -63,15 +63,11 @@ app.post('/create-user-record', async (req, res) => {
 async function runChat(prompt, userMessage, res) {
     try {
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-        
-        // Para o Gemini, o ideal é enviar o prompt de sistema e a mensagem do usuário juntos.
         const fullPrompt = `${prompt}\n\nMensagem do Usuário: "${userMessage}"`;
-
         const result = await model.generateContent(fullPrompt);
         const response = await result.response;
         const text = response.text();
         res.json({ resposta: text });
-
     } catch (error) {
         console.error('Erro ao chamar a API do Google Gemini:', error);
         res.status(500).json({ error: 'Não foi possível obter uma resposta da IA.' });
