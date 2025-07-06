@@ -4,16 +4,19 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import 'dotenv/config';
+
+// NOVOS IMPORTS PARA O FIREBASE ADMIN
 import admin from 'firebase-admin';
 
-// CORREÇÃO: Usando um método mais compatível para importar o JSON
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const serviceAccount = require('./serviceAccountKey.json');
-
 // --- Configuração ---
+// CORREÇÃO: Inicializa o Firebase Admin usando as variáveis de ambiente
+// Isto é mais seguro e compatível com o Render.
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
+  credential: admin.credential.cert({
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL
+  })
 });
 const db = admin.firestore();
 
@@ -47,9 +50,10 @@ app.post('/create-user-record', async (req, res) => {
     }
 
     try {
+        // Cria um novo documento na coleção 'users' com o ID do utilizador
         await db.collection('users').doc(uid).set({
             email: email,
-            cargo: 'gratuito',
+            cargo: 'gratuito', // Todo novo utilizador começa como gratuito
             criadoEm: admin.firestore.FieldValue.serverTimestamp()
         });
         res.status(201).json({ message: 'Perfil do utilizador criado com sucesso.' });
