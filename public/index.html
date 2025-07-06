@@ -631,31 +631,20 @@
         });
 
         document.getElementById('signup-form').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const email = document.getElementById('signup-email').value;
-    const password = document.getElementById('signup-password').value;
-    authError.classList.add('hidden');
-    createUserWithEmailAndPassword(auth, email, password)
-        .then((userCredential) => {
-            const user = userCredential.user;
+            e.preventDefault();
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            authError.classList.add('hidden');
+            createUserWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    const user = userCredential.user;
 
-            // Envia para o seu backend /create-user-record
-            return fetch('/create-user-record', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ uid: user.uid, email: user.email })
-            });
-        })
-        .then(response => {
-            if (!response.ok) {
-                console.error("Falha ao criar o perfil do utilizador no banco de dados.");
-            }
-        })
-        .catch(error => {
-            authError.textContent = "Erro ao criar conta. Verifique o e-mail ou tente uma senha mais forte.";
-            authError.classList.remove('hidden');
-        });
-});
+                    // Envia para o seu backend /create-user-record
+                    return fetch('/create-user-record', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ uid: user.uid, email: user.email })
+                    });
                 })
                 .then(response => {
                     if (!response.ok) {
@@ -702,6 +691,8 @@
                 });
             });
         }
+        // CORREÇÃO 1: Adicionando a lógica de abas para o modal de login
+        if(loginModal) setupTabs(loginModal);
         if(reclameModal) setupTabs(reclameModal);
         if(vagasModal) setupTabs(vagasModal);
         if(servicosModal) setupTabs(servicosModal);
@@ -897,17 +888,7 @@
         }
     </script>
 
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    const createAccountBtn = document.getElementById("createAccountBtn");
-    const registerModal = document.getElementById("registerModal");
-    if (createAccountBtn && registerModal) {
-        createAccountBtn.addEventListener("click", () => {
-            registerModal.classList.remove("hidden");
-        });
-    }
-});
-</script>
+    <!-- Removido o script extra e desnecessário que estava aqui -->
 </body>
 
 </html>
