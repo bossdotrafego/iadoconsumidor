@@ -512,19 +512,24 @@
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- CONFIGURAÇÃO DO FIREBASE (VOCÊ PRECISA PREENCHER) ---
+        // --- PASSO 1: CONFIGURAÇÃO DO FIREBASE ---
+        // ATUALIZADO COM AS SUAS CHAVES
         const firebaseConfig = {
-            apiKey: "COLE_SUA_API_KEY_AQUI",
-            authDomain: "COLE_SEU_AUTH_DOMAIN_AQUI",
-            projectId: "COLE_SEU_PROJECT_ID_AQUI",
-            storageBucket: "COLE_SEU_STORAGE_BUCKET_AQUI",
-            messagingSenderId: "COLE_SEU_MESSAGING_SENDER_ID_AQUI",
-            appId: "COLE_SEU_APP_ID_AQUI"
+            apiKey: "AIzaSyDMsufTXhP5Tq4IBJkb9N9SUpnrKYSoIlE",
+            authDomain: "ia-do-consumidor.firebaseapp.com",
+            projectId: "ia-do-consumidor",
+            storageBucket: "ia-do-consumidor.appspot.com",
+            messagingSenderId: "960487811924",
+            appId: "1:960487811924:web:59c6c4a8adfc6b3c47f6c1",
+            measurementId: "G-G7J8TJV4QE"
         };
 
-        // --- URL DO SEU BACKEND (IMPORTANTE!) ---
-        // Troque pela URL que a Render.com te deu
+        // --- PASSO 2: URL DO SEU BACKEND ---
+        // CONFIRME SE ESTA É A URL CORRETA DO SEU SERVIÇO NA RENDER
         const backendUrl = 'https://iadoconsumidor.onrender.com'; 
+
+        // O resto do código não precisa ser alterado
+        // ============================================
 
         // Inicializa o Firebase
         const app = initializeApp(firebaseConfig);
@@ -548,7 +553,6 @@
         const chatMessages = document.getElementById('chat-messages');
         const chatInput = document.getElementById('chat-input');
         const sendBtn = document.getElementById('send-btn');
-        // Modais
         const plansModal = document.getElementById('plansModal');
         const advogadosModal = document.getElementById('advogadosModal');
         const golpesModal = document.getElementById('golpesModal');
@@ -557,7 +561,6 @@
         const servicosModal = document.getElementById('servicosModal');
         const vendasModal = document.getElementById('vendasModal');
         const mobileMenuModal = document.getElementById('mobileMenuModal');
-        // Botões de Abrir
         const plansBtn = document.getElementById('plansBtn');
         const mobileMenuBtn = document.getElementById('mobileMenuBtn');
         const btnAdvogado = document.getElementById('btn-advogado');
@@ -566,7 +569,6 @@
         const btnVagas = document.getElementById('btn-vagas');
         const btnServicos = document.getElementById('btn-servicos');
         const btnVendas = document.getElementById('btn-vendas');
-        // Botões de Fechar
         const closePlansModal = document.getElementById('closePlansModal');
         const closeAdvogadosModal = document.getElementById('closeAdvogadosModal');
         const closeGolpesModal = document.getElementById('closeGolpesModal');
@@ -575,7 +577,6 @@
         const closeServicosModal = document.getElementById('closeServicosModal');
         const closeVendasModal = document.getElementById('closeVendasModal');
         const closeMobileMenuModal = document.getElementById('closeMobileMenuModal');
-        // Golpômetro
         const golpometroFileInput = document.getElementById('golpometro-file-input');
         const golpometroUploadBtn = document.getElementById('golpometro-upload-btn');
         const golpometroPreviewContainer = document.getElementById('golpometro-preview-container');
@@ -601,7 +602,6 @@
                 document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth).then(() => window.location.reload()));
                 loginModal.classList.add('hidden');
 
-                // LÓGICA DO BOTÃO DE UPGRADE
                 if (currentUser.cargo === 'gratuito' && currentUser.email) {
                     const perfectPayLink = `https://app.perfectpay.com.br/checkout/PPPBQCQK0?email=${encodeURIComponent(currentUser.email)}`;
                     upgradeContainer.innerHTML = `<a href="${perfectPayLink}" target="_blank" id="linkPremium" class="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold px-4 py-2 rounded-lg text-sm transition-colors flex items-center"><i class="fas fa-star mr-2"></i>Fazer Upgrade</a>`;
@@ -634,7 +634,6 @@
                 });
         });
 
-        // CORRIGIDO: Lógica de cadastro sem duplicação
         document.getElementById('signup-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const email = document.getElementById('signup-email').value;
@@ -644,7 +643,6 @@
             createUserWithEmailAndPassword(auth, email, password)
                 .then((userCredential) => {
                     const user = userCredential.user;
-                    // Envia para o seu backend /create-user-record
                     return fetch(`${backendUrl}/create-user-record`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -669,7 +667,6 @@
                 });
         });
 
-        // --- LÓGICA DOS MODAIS ---
         function setupModal(openBtn, modal, closeBtn) {
             if(openBtn) openBtn.addEventListener('click', () => modal.classList.remove('hidden'));
             if(closeBtn) closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
@@ -684,7 +681,6 @@
         setupModal(btnVendas, vendasModal, closeVendasModal);
         setupModal(mobileMenuBtn, mobileMenuModal, closeMobileMenuModal);
 
-        // --- LÓGICA DAS ABAS (TABS) ---
         function setupTabs(modalElement) {
             const tabs = modalElement.querySelectorAll('.tab-btn');
             const contents = modalElement.querySelectorAll('.tab-content');
@@ -709,7 +705,6 @@
         if(servicosModal) setupTabs(servicosModal);
         if(vendasModal) setupTabs(vendasModal);
 
-        // --- FUNÇÕES DO CHAT ---
         function addMessage(message, sender) {
             const messageWrapper = document.createElement('div');
             messageWrapper.classList.add('chat-message-animation');
@@ -800,7 +795,6 @@
             addMessage(welcomeMessage, 'bot');
         }
 
-        // --- LÓGICA DO GOLPÔMETRO ---
         golpometroUploadBtn.addEventListener('click', () => {
             golpometroFileInput.click();
         });
@@ -862,7 +856,6 @@
             };
         });
 
-        // --- LÓGICA DOS FORMULÁRIOS (MURAIS) ---
         function setupForm(formId, containerId, templateFunction) {
             const form = document.getElementById(formId);
             if(form) {
@@ -870,9 +863,6 @@
                     e.preventDefault();
                     const formData = new FormData(form);
                     const data = Object.fromEntries(formData.entries());
-                    
-                    // AQUI: Futuramente, você enviará 'data' para o Firestore
-                    // Por enquanto, apenas adiciona na tela localmente.
                     
                     const container = document.getElementById(containerId);
                     const newEntry = document.createElement('div');
@@ -892,7 +882,6 @@
             }
         }
 
-        // Templates para os murais
         const reclameTemplate = data => `<div class="border rounded-lg p-4"><h4 class="font-bold text-lg">${data.titulo} - ${data.empresa}</h4><p class="text-sm text-gray-600 mt-2">"${data.descricao}"</p><p class="text-xs text-gray-400 mt-2">Postado agora</p></div>`;
         const vagaTemplate = data => `<div class="border rounded-lg p-4 flex items-start space-x-4"><img src="https://placehold.co/80x80/3B82F6/FFFFFF?text=${data.empresa.substring(0,2).toUpperCase()}" alt="Logo" class="w-20 h-20 rounded-lg object-cover"><div><h4 class="font-bold text-lg">${data.titulo}</h4><p class="text-sm font-semibold text-blue-600">${data.empresa}</p><p class="text-sm text-gray-600 mt-1"><i class="fas fa-map-marker-alt mr-1"></i>${data.local}</p><p class="text-sm text-gray-600 mt-1"><i class="fas fa-dollar-sign mr-1"></i>${data.salario}</p><button class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mt-2">Ver Detalhes</button></div></div>`;
         const servicoTemplate = data => `<div class="border rounded-lg p-4"><h4 class="font-bold text-lg">${data.titulo}</h4><p class="text-sm text-gray-600 mt-2">"${data.descricao}"</p><p class="text-sm font-semibold text-blue-600 mt-2">Contato: ${data.contato}</p></div>`;
@@ -903,19 +892,16 @@
         setupForm('form-servicos', 'ver-servicos', servicoTemplate);
         setupForm('form-vendas', 'ver-produtos', vendaTemplate);
 
-        // --- EVENT LISTENERS ---
         sendBtn.addEventListener('click', () => handleSendMessage(chatInput.value, currentEndpoint));
         chatInput.addEventListener('keypress', (event) => {
             if (event.key === 'Enter') handleSendMessage(chatInput.value, currentEndpoint);
         });
 
-        // Botões Especialistas
         document.getElementById('btn-advogado-ia').addEventListener('click', () => activateChatMode('Advogado IA', 'Modo Advogado IA ativado. Por favor, descreva seu caso para que eu possa fornecer as orientações.', '/chat-advogado'));
         document.getElementById('btn-procon').addEventListener('click', () => activateChatMode('Especialista PROCON', 'Modo PROCON ativado. Qual seu problema? Vou te guiar sobre como registrar sua reclamação.', '/chat-procon'));
         document.getElementById('btn-telefonia').addEventListener('click', () => activateChatMode('Consultor de Telefonia', 'Modo Telefonia ativado. Me diga qual o problema com sua operadora (fatura, sinal, serviço) para eu te ajudar.', '/chat-telefonia'));
         document.getElementById('btn-nome-sujo').addEventListener('click', () => activateChatMode('Assessor Financeiro', 'Modo Nome Sujo ativado. Posso te ajudar a consultar seu CPF, entender dívidas e encontrar o caminho para limpar seu nome.', '/chat-nomesujo'));
     
-        // Lógica do Menu Mobile (clonagem e eventos)
         const desktopSidebar = document.getElementById('desktop-sidebar');
         const mobileSidebarContent = document.getElementById('mobile-sidebar-content');
         if (desktopSidebar && mobileSidebarContent) {
