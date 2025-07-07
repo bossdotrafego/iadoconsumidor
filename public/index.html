@@ -157,7 +157,7 @@
                             <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i><span>Análise de problemas de Telefonia</span></li>
                             <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i><span>Guia para limpar Nome Sujo</span></li>
                         </ul>
-                        <a id="linkPremiumPlus" href="#" target="_blank" class="mt-4 w-full block text-center bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium transition-colors">Assinar Plus</a>
+                        <a id="linkPremiumPlus" href="https://go.perfectpay.com.br/PPU38CPS0M8" target="_blank" class="mt-4 w-full block text-center bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium transition-colors">Assinar Plus</a>
                     </div>
                     
                     <!-- Premium Plan -->
@@ -173,7 +173,7 @@
                             <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i><span>Contato com Advogado Parceiro</span></li>
                             <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i><span>Geração de documentos para PROCON</span></li>
                         </ul>
-                        <a id="linkPremium" href="#" target="_blank" class="mt-4 w-full block text-center bg-gray-800 hover:bg-gray-700 text-white py-2 rounded-lg font-medium transition-colors">Assinar Premium</a>
+                        <a id="linkPremium" href="https://go.perfectpay.com.br/PPU38CPS0M8" target="_blank" class="mt-4 w-full block text-center bg-gray-800 hover:bg-gray-700 text-white py-2 rounded-lg font-medium transition-colors">Assinar Premium</a>
                     </div>
                 </div>
             </div>
@@ -512,8 +512,7 @@
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- PASSO 1: CONFIGURAÇÃO DO FIREBASE ---
-        // ATUALIZADO COM AS SUAS CHAVES
+        // --- CONFIGURAÇÃO DO FIREBASE ---
         const firebaseConfig = {
             apiKey: "AIzaSyDMsufTXhP5Tq4IBJkb9N9SUpnrKYSoIlE",
             authDomain: "ia-do-consumidor.firebaseapp.com",
@@ -524,12 +523,11 @@
             measurementId: "G-G7J8TJV4QE"
         };
 
-        // --- PASSO 2: URL DO SEU BACKEND ---
-        // CONFIRME SE ESTA É A URL CORRETA DO SEU SERVIÇO NA RENDER
+        // --- URL DO SEU BACKEND ---
         const backendUrl = 'https://iadoconsumidor.onrender.com'; 
-
-        // O resto do código não precisa ser alterado
-        // ============================================
+        
+        // --- LINK DE CHECKOUT ---
+        const checkoutUrl = 'https://go.perfectpay.com.br/PPU38CPS0M8';
 
         // Inicializa o Firebase
         const app = initializeApp(firebaseConfig);
@@ -603,8 +601,8 @@
                 loginModal.classList.add('hidden');
 
                 if (currentUser.cargo === 'gratuito' && currentUser.email) {
-                    const perfectPayLink = `https://app.perfectpay.com.br/checkout/PPPBQCQK0?email=${encodeURIComponent(currentUser.email)}`;
-                    upgradeContainer.innerHTML = `<a href="${perfectPayLink}" target="_blank" id="linkPremium" class="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold px-4 py-2 rounded-lg text-sm transition-colors flex items-center"><i class="fas fa-star mr-2"></i>Fazer Upgrade</a>`;
+                    const upgradeLink = `${checkoutUrl}?email=${encodeURIComponent(currentUser.email)}`;
+                    upgradeContainer.innerHTML = `<a href="${upgradeLink}" target="_blank" class="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold px-4 py-2 rounded-lg text-sm transition-colors flex items-center"><i class="fas fa-star mr-2"></i>Fazer Upgrade</a>`;
                 } else {
                     upgradeContainer.innerHTML = '';
                 }
@@ -785,7 +783,8 @@
             const premiumFeatures = ['/chat-advogado', '/chat-procon', '/chat-telefonia', '/chat-nomesujo'];
             
             if (premiumFeatures.includes(endpointPath) && currentUser.cargo === 'gratuito') {
-                plansModal.classList.remove('hidden');
+                const checkoutLinkWithEmail = `${checkoutUrl}?email=${encodeURIComponent(currentUser.email)}`;
+                window.open(checkoutLinkWithEmail, '_blank');
                 return;
             }
 

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import 'dotenv/config';
 import admin from 'firebase-admin';
-import rateLimit from 'express-rate-limit'; // <-- NOVO: Importa o rate limiter
+import rateLimit from 'express-rate-limit';
 
 // --- VERIFICAÇÃO DAS VARIÁVEIS DE AMBIENTE ---
 const firebaseCreds = {
@@ -14,7 +14,6 @@ const firebaseCreds = {
     clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
 };
 
-// Adiciona a verificação do novo segredo do webhook
 if (!firebaseCreds.projectId || !firebaseCreds.privateKey || !firebaseCreds.clientEmail || !process.env.GOOGLE_API_KEY || !process.env.PERFECTPAY_WEBHOOK_SECRET) {
     console.error("ERRO FATAL: Uma ou mais variáveis de ambiente não estão definidas.");
     console.error("Verifique se as variáveis FIREBASE_*, GOOGLE_API_KEY e PERFECTPAY_WEBHOOK_SECRET estão configuradas.");
@@ -46,18 +45,16 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- NOVO: CONFIGURAÇÃO DO RATE LIMITER ---
+// --- CONFIGURAÇÃO DO RATE LIMITER ---
 const chatLimiter = rateLimit({
-	windowMs: 15 * 60 * 1000, // 15 minutos
-	max: 50, // Limita cada IP a 50 requisições na janela de 15 minutos
+	windowMs: 15 * 60 * 1000, 
+	max: 50,
 	message: { error: 'Muitas requisições de chat deste IP. Tente novamente após 15 minutos.' },
 	standardHeaders: true,
 	legacyHeaders: false,
 });
 
-// --- NOVOS: MIDDLEWARES DE SEGURANÇA ---
-
-// Middleware para verificar o Token de ID do Firebase enviado pelo frontend
+// --- MIDDLEWARES DE SEGURANÇA ---
 const verifyFirebaseToken = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -65,17 +62,15 @@ const verifyFirebaseToken = async (req, res, next) => {
     }
     const idToken = authHeader.split('Bearer ')[1];
     try {
-        // Verifica o token usando o Firebase Admin SDK
         const decodedToken = await admin.auth().verifyIdToken(idToken);
-        req.user = decodedToken; // Adiciona os dados do usuário (uid, email, etc.) à requisição
-        next(); // Token é válido, continua para a próxima função
+        req.user = decodedToken; 
+        next();
     } catch (error) {
         console.error('Erro ao verificar token do Firebase:', error);
         return res.status(403).json({ error: 'Não autorizado: Token inválido ou expirado.' });
     }
 };
 
-// Middleware para verificar se o usuário tem um plano pago ('plus' ou 'premium')
 const checkUserPlan = async (req, res, next) => {
     try {
         const uid = req.user.uid;
@@ -86,9 +81,8 @@ const checkUserPlan = async (req, res, next) => {
         }
 
         const userData = userDoc.data();
-        // Verifica se o cargo é um dos planos pagos
         if (userData.cargo === 'plus' || userData.cargo === 'premium') {
-            next(); // Usuário tem permissão, continua
+            next(); 
         } else {
             res.status(403).json({ error: 'Acesso negado. Este recurso requer um plano Plus ou Premium.' });
         }
@@ -105,7 +99,6 @@ app.get('/', (req, res) => {
 });
 
 // --- ROTA PARA CRIAR O PERFIL DO UTILIZADOR NO BANCO DE DADOS ---
-// Esta rota é chamada logo após o cadastro no frontend
 app.post('/create-user-record', async (req, res) => {
     const { uid, email } = req.body;
     if (!uid || !email) {
@@ -124,10 +117,9 @@ app.post('/create-user-record', async (req, res) => {
     }
 });
 
-// --- ROTA DE WEBHOOK PARA A PERFECT PAY (AGORA SEGURA) ---
+// --- ROTA DE WEBHOOK PARA A PERFECT PAY (AGORA COM LÓGICA COMPLETA) ---
 app.post('/perfectpay-webhook', async (req, res) => {
-    // ATUALIZADO: Verificação de segurança do Webhook
-    const providedSignature = req.headers['x-perfect-signature']; // Use o header correto da Perfect Pay
+    const providedSignature = req.headers['x-perfect-signature']; 
     const ourSecretToken = process.env.PERFECTPAY_WEBHOOK_SECRET;
 
     if (providedSignature !== ourSecretToken) {
@@ -145,26 +137,39 @@ app.post('/perfectpay-webhook', async (req, res) => {
     if (!customerEmail) {
         return res.status(400).send("E-mail do cliente não encontrado.");
     }
-    if (status !== 'Aprovado') {
-        return res.status(200).send("Status não é 'Aprovado'.");
+
+    // --- LÓGICA ATUALIZADA ---
+    let newCargo = null;
+    const statusDeCancelamento = ['Cancelado', 'Reembolsado', 'Expirado', 'Recusado'];
+
+    if (status === 'Aprovado') {
+        newCargo = 'plus'; // Assume que o produto é o 'plus'. Ajuste se tiver mais produtos.
+    } else if (statusDeCancelamento.includes(status)) {
+        newCargo = 'gratuito';
+    } else {
+        console.log(`Status da venda '${status}' não requer ação. Ignorando.`);
+        return res.status(200).send(`Status '${status}' não requer ação.`);
     }
+    // --- FIM DA LÓGICA ATUALIZADA ---
 
     try {
         const usersRef = db.collection('users');
         const snapshot = await usersRef.where('email', '==', customerEmail).get();
 
         if (snapshot.empty) {
+            console.log(`Nenhum usuário encontrado com o e-mail: ${customerEmail}`);
             return res.status(404).send("Usuário não encontrado.");
         }
 
         const batch = db.batch();
         snapshot.forEach(doc => {
-            console.log(`Atualizando usuário ${doc.id} para o cargo 'plus'.`);
+            console.log(`Atualizando usuário ${doc.id} para o cargo '${newCargo}' devido ao status '${status}'.`);
             const userDocRef = usersRef.doc(doc.id);
-            batch.update(userDocRef, { cargo: 'plus' }); 
+            batch.update(userDocRef, { cargo: newCargo }); 
         });
 
         await batch.commit();
+        console.log(`Usuário(s) com e-mail ${customerEmail} atualizado(s) com sucesso.`);
         res.status(200).send("Webhook processado com sucesso.");
 
     } catch (error) {
@@ -189,15 +194,12 @@ async function runChat(prompt, userMessage, res) {
     }
 }
 
-// --- ROTAS DE CHAT (AGORA PROTEGIDAS) ---
-
-// Rota de chat geral (gratuita), mas requer login e tem rate limit
+// --- ROTAS DE CHAT (PROTEGIDAS) ---
 const promptGeral = `Você é a 'IA do Consumidor', a especialista principal de uma plataforma de soluções jurídicas. Sua missão é guiar usuários e convertê-los em assinantes. Se o usuário perguntar sobre PROCON, Telefonia, Nome Sujo ou Advogado, direcione-o para o botão correspondente na interface, explicando que é uma ferramenta dedicada para resolver aquele problema.`;
 app.post('/chat', chatLimiter, verifyFirebaseToken, (req, res) => {
     runChat(promptGeral, req.body.message, res);
 });
 
-// Rotas de especialistas (pagas), requerem login, plano pago e têm rate limit
 const promptAdvogado = `Você é um 'Advogado IA', um assistente jurídico virtual especializado em pequenas causas no Brasil. A sua comunicação é formal e objetiva. Apresente-se, analise o caso do utilizador e forneça os próximos passos lógicos (documentos, como estruturar a reclamação). Mantenha-se estritamente no caso apresentado. Se o utilizador fizer perguntas fora do âmbito jurídico do problema dele, gentilmente traga-o de volta ao foco, dizendo: 'Para mantermos a eficiência, vamos concentrar-nos nos detalhes do seu caso específico.' NÃO dê conselhos legais definitivos.`;
 app.post('/chat-advogado', chatLimiter, verifyFirebaseToken, checkUserPlan, (req, res) => {
     runChat(promptAdvogado, req.body.message, res);
@@ -218,13 +220,13 @@ app.post('/chat-nomesujo', chatLimiter, verifyFirebaseToken, checkUserPlan, (req
     runChat(promptNomeSujo, req.body.message, res);
 });
 
-// ROTA GOLPÔMETRO (protegida, mas pode ser gratuita ou paga, dependendo da sua regra de negócio)
+// ROTA GOLPÔMETRO
 const promptGolpometro = `Você é o 'Golpômetro', uma IA analista de fraudes. Sua única função é analisar a imagem que o usuário fornecer. Procure por sinais clássicos de golpe: promessas exageradas, senso de urgência, erros de português, links suspeitos, logotipos de baixa qualidade, etc. Sua resposta deve ser em HTML e seguir estritamente este formato:
 1.  **Nível de Risco:** <strong style="font-size: 1.2em; color: #EF4444;">[X]% de Risco</strong>
 2.  **Veredito:** <span style="background-color: #FEE2E2; color: #B91C1C; padding: 2px 6px; border-radius: 4px; font-weight: bold;">[Potencial Golpe / Suspeito / Parece Legítimo]</span>
 3.  **Justificativa:** Uma lista <ul> com itens <li> explicando os pontos que levantaram suspeita na imagem.
 Seja direto e técnico.`;
-app.post('/chat-golpometro', chatLimiter, verifyFirebaseToken, async (req, res) => { // Requer login, mas não plano
+app.post('/chat-golpometro', chatLimiter, verifyFirebaseToken, async (req, res) => { 
     const { image } = req.body;
     if (!image) return res.status(400).json({ error: 'Imagem é obrigatória.' });
     try {
