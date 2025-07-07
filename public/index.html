@@ -522,6 +522,10 @@
             appId: "COLE_SEU_APP_ID_AQUI"
         };
 
+        // --- URL DO SEU BACKEND (IMPORTANTE!) ---
+        // Troque pela URL que a Render.com te deu
+        const backendUrl = 'https://iadoconsumidor.onrender.com'; 
+
         // Inicializa o Firebase
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -529,7 +533,7 @@
 
         // --- ESTADO DA APLICAÇÃO ---
         let currentUser = null;
-        let currentEndpoint = '/chat';
+        let currentEndpoint = `${backendUrl}/chat`; // Endpoint inicial
         let botName = 'IA do Consumidor';
 
         // --- ELEMENTOS DO DOM ---
@@ -630,32 +634,22 @@
                 });
         });
 
+        // CORRIGIDO: Lógica de cadastro sem duplicação
         document.getElementById('signup-form').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const email = document.getElementById('signup-email').value;
-    const password = document.getElementById('signup-password').value;
-    authError.classList.add('hidden');
-    createUserWithEmailAndPassword(auth, email, password)
-        .then((userCredential) => {
-            const user = userCredential.user;
-
-            // Envia para o seu backend /create-user-record
-            return fetch('/create-user-record', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ uid: user.uid, email: user.email })
-            });
-        })
-        .then(response => {
-            if (!response.ok) {
-                console.error("Falha ao criar o perfil do utilizador no banco de dados.");
-            }
-        })
-        .catch(error => {
-            authError.textContent = "Erro ao criar conta. Verifique o e-mail ou tente uma senha mais forte.";
-            authError.classList.remove('hidden');
-        });
-});
+            e.preventDefault();
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            authError.classList.add('hidden');
+            
+            createUserWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    const user = userCredential.user;
+                    // Envia para o seu backend /create-user-record
+                    return fetch(`${backendUrl}/create-user-record`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ uid: user.uid, email: user.email })
+                    });
                 })
                 .then(response => {
                     if (!response.ok) {
@@ -663,7 +657,14 @@
                     }
                 })
                 .catch(error => {
-                    authError.textContent = "Erro ao criar conta. Verifique o e-mail ou tente uma senha mais forte.";
+                    console.error("Erro no cadastro:", error);
+                    if (error.code === 'auth/email-already-in-use') {
+                        authError.textContent = "Este e-mail já está em uso.";
+                    } else if (error.code === 'auth/weak-password') {
+                        authError.textContent = "A senha é muito fraca. Use pelo menos 6 caracteres.";
+                    } else {
+                        authError.textContent = "Erro ao criar conta. Verifique o e-mail.";
+                    }
                     authError.classList.remove('hidden');
                 });
         });
@@ -702,6 +703,7 @@
                 });
             });
         }
+        if(loginModal) setupTabs(loginModal);
         if(reclameModal) setupTabs(reclameModal);
         if(vagasModal) setupTabs(vagasModal);
         if(servicosModal) setupTabs(servicosModal);
@@ -739,40 +741,61 @@
 
         async function handleSendMessage(messageText, endpoint) {
             if (!messageText || messageText.trim() === '') return;
+            
+            const user = auth.currentUser;
+            if (!user) {
+                addMessage('Você precisa estar logado para usar o chat. Por favor, acesse sua conta.', 'bot');
+                loginModal.classList.remove('hidden');
+                return;
+            }
+
             addMessage(messageText, 'user');
             chatInput.value = '';
             showTypingIndicator();
+            
             try {
+                const token = await user.getIdToken();
                 const response = await fetch(endpoint, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    },
                     body: JSON.stringify({ message: messageText }),
                 });
+                
                 removeTypingIndicator();
-                if (!response.ok) throw new Error('O servidor respondeu com um erro.');
                 const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'O servidor respondeu com um erro.');
+                }
+                
                 addMessage(data.resposta, 'bot');
+
             } catch (error) {
                 console.error('Erro ao conectar com o backend:', error);
                 removeTypingIndicator();
-                addMessage('Desculpe, não consegui me conectar ao servidor.', 'bot');
+                addMessage(`Desculpe, ocorreu um erro: ${error.message}`, 'bot');
             }
         }
         
-        function activateChatMode(newBotName, welcomeMessage, endpoint) {
+        function activateChatMode(newBotName, welcomeMessage, endpointPath) {
             if (!currentUser) {
                 loginModal.classList.remove('hidden');
                 return;
             }
-            // Lógica de permissão
+            
+            const fullEndpoint = `${backendUrl}${endpointPath}`;
             const premiumFeatures = ['/chat-advogado', '/chat-procon', '/chat-telefonia', '/chat-nomesujo'];
-            if (premiumFeatures.includes(endpoint) && currentUser.cargo === 'gratuito') {
-                plansModal.classList.remove('hidden'); // Abre o modal de planos
+            
+            if (premiumFeatures.includes(endpointPath) && currentUser.cargo === 'gratuito') {
+                plansModal.classList.remove('hidden');
                 return;
             }
 
             botName = newBotName;
-            currentEndpoint = endpoint;
+            currentEndpoint = fullEndpoint;
             chatMessages.innerHTML = '';
             addMessage(welcomeMessage, 'bot');
         }
@@ -803,6 +826,12 @@
                 return;
             }
             
+            const user = auth.currentUser;
+            if (!user) {
+                loginModal.classList.remove('hidden');
+                return;
+            }
+
             golpometroResult.classList.remove('hidden');
             golpometroResult.innerHTML = '<p>Analisando imagem...</p>';
             golpometroAnaliseBtn.disabled = true;
@@ -811,11 +840,14 @@
             reader.readAsDataURL(file);
             reader.onloadend = async () => {
                 const base64Image = reader.result.split(',')[1];
-
                 try {
-                    const response = await fetch('/chat-golpometro', {
+                    const token = await user.getIdToken();
+                    const response = await fetch(`${backendUrl}/chat-golpometro`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
                         body: JSON.stringify({ image: base64Image }),
                     });
                     if (!response.ok) throw new Error('Erro no servidor');
@@ -830,7 +862,7 @@
             };
         });
 
-        // --- LÓGICA DOS FORMULÁRIOS ---
+        // --- LÓGICA DOS FORMULÁRIOS (MURAIS) ---
         function setupForm(formId, containerId, templateFunction) {
             const form = document.getElementById(formId);
             if(form) {
@@ -839,10 +871,13 @@
                     const formData = new FormData(form);
                     const data = Object.fromEntries(formData.entries());
                     
+                    // AQUI: Futuramente, você enviará 'data' para o Firestore
+                    // Por enquanto, apenas adiciona na tela localmente.
+                    
                     const container = document.getElementById(containerId);
                     const newEntry = document.createElement('div');
                     newEntry.innerHTML = templateFunction(data);
-                    container.prepend(newEntry.firstElementChild); // Adiciona no topo
+                    container.prepend(newEntry.firstElementChild);
 
                     const submitButton = form.querySelector('button[type="submit"]');
                     const originalText = submitButton.innerHTML;
@@ -897,17 +932,5 @@
         }
     </script>
 
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    const createAccountBtn = document.getElementById("createAccountBtn");
-    const registerModal = document.getElementById("registerModal");
-    if (createAccountBtn && registerModal) {
-        createAccountBtn.addEventListener("click", () => {
-            registerModal.classList.remove("hidden");
-        });
-    }
-});
-</script>
 </body>
-
 </html>
