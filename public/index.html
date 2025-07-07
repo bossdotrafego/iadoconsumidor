@@ -290,15 +290,10 @@
                         <button class="tab-btn" data-tab="criar-reclamacao">Fazer Reclamação</button>
                     </nav>
                 </div>
-                <div class="flex-grow overflow-y-auto">
+                <div id="ver-reclamacoes-container" class="flex-grow overflow-y-auto">
                     <!-- Conteúdo da Aba Ver Reclamações -->
                     <div id="ver-reclamacoes" class="tab-content active space-y-4">
-                        <!-- Exemplo de reclamação -->
-                        <div class="border rounded-lg p-4">
-                            <h4 class="font-bold text-lg">Cobrança Indevida - Empresa XYZ</h4>
-                            <p class="text-sm text-gray-600 mt-2">"Fizeram uma cobrança no meu cartão de um serviço que eu já tinha cancelado. Já tentei contato e não resolvem..."</p>
-                            <p class="text-xs text-gray-400 mt-2">Postado por: João S. - 05/07/2025</p>
-                        </div>
+                        <!-- As reclamações do Firestore serão inseridas aqui -->
                     </div>
                     <!-- Conteúdo da Aba Criar Reclamação -->
                     <div id="criar-reclamacao" class="tab-content">
@@ -332,17 +327,7 @@
                 <div class="flex-grow overflow-y-auto">
                     <!-- Conteúdo da Aba Ver Vagas -->
                     <div id="ver-vagas" class="tab-content active space-y-4">
-                        <!-- Exemplo de vaga -->
-                        <div class="border rounded-lg p-4 flex items-start space-x-4">
-                            <img src="https://placehold.co/80x80/3B82F6/FFFFFF?text=TS" alt="Logo da Empresa" class="w-20 h-20 rounded-lg object-cover">
-                            <div>
-                                <h4 class="font-bold text-lg">Analista de Atendimento</h4>
-                                <p class="text-sm font-semibold text-blue-600">Tech Solutions</p>
-                                <p class="text-sm text-gray-600 mt-1"><i class="fas fa-map-marker-alt mr-1"></i>São Paulo, SP</p>
-                                <p class="text-sm text-gray-600 mt-1"><i class="fas fa-dollar-sign mr-1"></i>R$ 3.500,00</p>
-                                <button class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mt-2">Ver Detalhes</button>
-                            </div>
-                        </div>
+                         <!-- As vagas do Firestore serão inseridas aqui -->
                     </div>
                     <!-- Conteúdo da Aba Anunciar Vaga -->
                     <div id="anunciar-vaga" class="tab-content">
@@ -380,12 +365,7 @@
                 <div class="flex-grow overflow-y-auto">
                     <!-- Conteúdo da Aba Ver Serviços -->
                     <div id="ver-servicos" class="tab-content active grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <!-- Exemplo de serviço -->
-                        <div class="border rounded-lg p-4">
-                            <h4 class="font-bold text-lg">Conserto de Eletrodomésticos</h4>
-                            <p class="text-sm text-gray-600 mt-2">"Conserto geladeiras, máquinas de lavar e micro-ondas. Atendimento rápido e com garantia."</p>
-                            <p class="text-sm font-semibold text-blue-600 mt-2">Contato: (11) 98888-7777</p>
-                        </div>
+                        <!-- Os serviços do Firestore serão inseridos aqui -->
                     </div>
                     <!-- Conteúdo da Aba Oferecer Serviço -->
                     <div id="oferecer-servico" class="tab-content">
@@ -421,15 +401,7 @@
                 <div class="flex-grow overflow-y-auto">
                     <!-- Conteúdo da Aba Ver Produtos -->
                     <div id="ver-produtos" class="tab-content active grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <!-- Exemplo de produto -->
-                        <div class="border rounded-lg">
-                            <img src="https://placehold.co/300x200/E2E8F0/4A5568?text=Produto" alt="Foto do Produto" class="w-full h-32 object-cover rounded-t-lg">
-                            <div class="p-4">
-                                <h4 class="font-bold">Celular Seminovo</h4>
-                                <p class="text-lg font-semibold text-blue-600">R$ 850,00</p>
-                                <p class="text-xs text-gray-500">Vendedor: Maria</p>
-                            </div>
-                        </div>
+                        <!-- Os produtos do Firestore serão inseridos aqui -->
                     </div>
                     <!-- Conteúdo da Aba Anunciar Produto -->
                     <div id="anunciar-produto" class="tab-content">
@@ -510,7 +482,16 @@
             signOut, 
             onAuthStateChanged 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { 
+            getFirestore, 
+            doc, 
+            getDoc, 
+            addDoc, 
+            collection, 
+            query, 
+            onSnapshot,
+            Timestamp
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- CONFIGURAÇÃO DO AMBIENTE ---
         const backendUrl = 'https://iadoconsumidor.onrender.com';
@@ -589,10 +570,15 @@
                 const docRef = doc(db, "users", user.uid);
                 const docSnap = await getDoc(docRef);
                 if (docSnap.exists()) {
-                    currentUser = { ...user, cargo: docSnap.data().cargo };
+                    currentUser = { ...user, ...docSnap.data() };
                 } else {
-                    console.error("Perfil do utilizador não encontrado no Firestore!");
-                    currentUser = { ...user, cargo: 'gratuito' }; // Fallback
+                    console.error("Perfil do utilizador não encontrado no Firestore! Criando um perfil de fallback.");
+                    await fetch(`${backendUrl}/create-user-record`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ uid: user.uid, email: user.email })
+                    });
+                    currentUser = { ...user, cargo: 'gratuito', email: user.email }; 
                 }
                 
                 authWall.classList.add('hidden');
@@ -601,10 +587,12 @@
                 document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth).then(() => window.location.reload()));
                 loginModal.classList.add('hidden');
 
-                // LÓGICA DO BOTÃO DE UPGRADE
+                // LÓGICA DO BOTÃO DE UPGRADE (Perfect Pay)
                 if (currentUser.cargo === 'gratuito' && currentUser.email) {
-                    const perfectPayLink = `https://app.perfectpay.com.br/checkout/PPPBQCQK0?email=${encodeURIComponent(currentUser.email)}`;
-                    upgradeContainer.innerHTML = `<a href="${perfectPayLink}" target="_blank" id="linkPremium" class="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold px-4 py-2 rounded-lg text-sm transition-colors flex items-center"><i class="fas fa-star mr-2"></i>Fazer Upgrade</a>`;
+                    // CORREÇÃO: Substitua o link abaixo pelo seu link de checkout da Perfect Pay
+                    const checkoutLink = "https://go.perfectpay.com.br/PPU38CPS0M8"; 
+                    const linkComEmail = `${checkoutLink}?email=${encodeURIComponent(currentUser.email)}`;
+                    upgradeContainer.innerHTML = `<a href="${linkComEmail}" target="_blank" id="linkUpgrade" class="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold px-4 py-2 rounded-lg text-sm transition-colors flex items-center"><i class="fas fa-star mr-2"></i>Fazer Upgrade</a>`;
                 } else {
                     upgradeContainer.innerHTML = '';
                 }
@@ -718,6 +706,28 @@
         setupTabs(vendasModal);
 
         // --- FUNÇÕES DO CHAT ---
+        async function handleSendMessage(messageText, endpoint) {
+            if (!messageText || messageText.trim() === '') return;
+            addMessage(messageText, 'user');
+            chatInput.value = '';
+            showTypingIndicator();
+            try {
+                const response = await fetch(`${backendUrl}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: messageText }),
+                });
+                removeTypingIndicator();
+                if (!response.ok) throw new Error('O servidor respondeu com um erro.');
+                const data = await response.json();
+                addMessage(data.resposta, 'bot');
+            } catch (error) {
+                console.error('Erro ao conectar com o backend:', error);
+                removeTypingIndicator();
+                addMessage('Desculpe, não consegui me conectar ao servidor.', 'bot');
+            }
+        }
+        
         function addMessage(message, sender) {
             const messageWrapper = document.createElement('div');
             messageWrapper.classList.add('chat-message-animation');
@@ -746,38 +756,15 @@
             const typingIndicator = document.getElementById('typing-indicator');
             if (typingIndicator) typingIndicator.remove();
         }
-
-        async function handleSendMessage(messageText, endpoint) {
-            if (!messageText || messageText.trim() === '') return;
-            addMessage(messageText, 'user');
-            chatInput.value = '';
-            showTypingIndicator();
-            try {
-                const response = await fetch(`${backendUrl}${endpoint}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: messageText }),
-                });
-                removeTypingIndicator();
-                if (!response.ok) throw new Error('O servidor respondeu com um erro.');
-                const data = await response.json();
-                addMessage(data.resposta, 'bot');
-            } catch (error) {
-                console.error('Erro ao conectar com o backend:', error);
-                removeTypingIndicator();
-                addMessage('Desculpe, não consegui me conectar ao servidor.', 'bot');
-            }
-        }
         
         function activateChatMode(newBotName, welcomeMessage, endpoint) {
             if (!currentUser) {
                 loginModal.classList.remove('hidden');
                 return;
             }
-            // Lógica de permissão
             const premiumFeatures = ['/chat-advogado', '/chat-procon', '/chat-telefonia', '/chat-nomesujo'];
             if (premiumFeatures.includes(endpoint) && currentUser.cargo === 'gratuito') {
-                plansModal.classList.remove('hidden'); // Abre o modal de planos
+                plansModal.classList.remove('hidden');
                 return;
             }
 
@@ -840,43 +827,90 @@
             };
         });
 
-        // --- LÓGICA DOS FORMULÁRIOS ---
-        function setupForm(formId, containerId, templateFunction) {
+        // --- LÓGICA DOS FORMULÁRIOS CONECTADA AO FIRESTORE ---
+        async function setupForm(formId, collectionName) {
             const form = document.getElementById(formId);
             if(form) {
-                form.addEventListener('submit', (e) => {
+                form.addEventListener('submit', async (e) => {
                     e.preventDefault();
+                    if (!currentUser) {
+                        alert("Você precisa estar logado para postar.");
+                        return;
+                    }
                     const formData = new FormData(form);
                     const data = Object.fromEntries(formData.entries());
                     
-                    const container = document.getElementById(containerId);
-                    const newEntry = document.createElement('div');
-                    newEntry.innerHTML = templateFunction(data);
-                    container.prepend(newEntry.firstElementChild); // Adiciona no topo
+                    data.userId = currentUser.uid;
+                    data.userEmail = currentUser.email;
+                    data.criadoEm = Timestamp.now();
 
                     const submitButton = form.querySelector('button[type="submit"]');
-                    const originalText = submitButton.innerHTML;
-                    submitButton.innerHTML = `<i class="fas fa-check-circle mr-2"></i> Enviado!`;
-                    submitButton.classList.add('bg-green-500', 'hover:bg-green-600');
-                    setTimeout(() => {
-                        submitButton.innerHTML = originalText;
-                        submitButton.classList.remove('bg-green-500', 'hover:bg-green-600');
+                    submitButton.disabled = true;
+                    submitButton.innerHTML = 'Enviando...';
+
+                    try {
+                        await addDoc(collection(db, collectionName), data);
+                        
+                        const originalText = submitButton.textContent;
+                        submitButton.innerHTML = `<i class="fas fa-check-circle mr-2"></i> Enviado!`;
+                        submitButton.classList.add('bg-green-500', 'hover:bg-green-600');
                         form.reset();
-                    }, 3000);
+                        setTimeout(() => {
+                            submitButton.innerHTML = originalText;
+                            submitButton.classList.remove('bg-green-500', 'hover:bg-green-600');
+                            submitButton.disabled = false;
+                        }, 3000);
+
+                    } catch (error) {
+                        console.error(`Erro ao salvar em ${collectionName}:`, error);
+                        alert(`Ocorreu um erro ao enviar. Tente novamente.`);
+                        submitButton.disabled = false;
+                        submitButton.innerHTML = "Tentar Novamente";
+                    }
                 });
             }
         }
+        
+        // --- FUNÇÃO PARA CARREGAR DADOS DA COMUNIDADE DO FIRESTORE ---
+        function loadCommunityData(collectionName, containerId, templateFunction) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            const q = query(collection(db, collectionName));
+            onSnapshot(q, (querySnapshot) => {
+                container.innerHTML = ''; 
+                if (querySnapshot.empty) {
+                    container.innerHTML = '<p class="text-gray-500 text-center col-span-full">Nenhum item encontrado.</p>';
+                    return;
+                }
+                querySnapshot.forEach((doc) => {
+                    const newEntry = document.createElement('div');
+                    if (container.classList.contains('grid')) {
+                       newEntry.className = 'contents'; 
+                    }
+                    newEntry.innerHTML = templateFunction(doc.data(), doc.id);
+                    container.prepend(newEntry);
+                });
+            });
+        }
 
         // Templates para os murais
-        const reclameTemplate = data => `<div class="border rounded-lg p-4"><h4 class="font-bold text-lg">${data.titulo} - ${data.empresa}</h4><p class="text-sm text-gray-600 mt-2">"${data.descricao}"</p><p class="text-xs text-gray-400 mt-2">Postado agora</p></div>`;
-        const vagaTemplate = data => `<div class="border rounded-lg p-4 flex items-start space-x-4"><img src="https://placehold.co/80x80/3B82F6/FFFFFF?text=${data.empresa.substring(0,2).toUpperCase()}" alt="Logo" class="w-20 h-20 rounded-lg object-cover"><div><h4 class="font-bold text-lg">${data.titulo}</h4><p class="text-sm font-semibold text-blue-600">${data.empresa}</p><p class="text-sm text-gray-600 mt-1"><i class="fas fa-map-marker-alt mr-1"></i>${data.local}</p><p class="text-sm text-gray-600 mt-1"><i class="fas fa-dollar-sign mr-1"></i>${data.salario}</p><button class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mt-2">Ver Detalhes</button></div></div>`;
-        const servicoTemplate = data => `<div class="border rounded-lg p-4"><h4 class="font-bold text-lg">${data.titulo}</h4><p class="text-sm text-gray-600 mt-2">"${data.descricao}"</p><p class="text-sm font-semibold text-blue-600 mt-2">Contato: ${data.contato}</p></div>`;
-        const vendaTemplate = data => `<div class="border rounded-lg"><img src="https://placehold.co/300x200/E2E8F0/4A5568?text=Produto" alt="Foto" class="w-full h-32 object-cover rounded-t-lg"><div class="p-4"><h4 class="font-bold">${data.produto}</h4><p class="text-lg font-semibold text-blue-600">R$ ${data.preco}</p><p class="text-xs text-gray-500">Vendedor: Anônimo</p></div></div>`;
+        const reclameTemplate = (data, id) => `<div class="border rounded-lg p-4" data-id="${id}"><h4 class="font-bold text-lg">${data.titulo} - ${data.empresa}</h4><p class="text-sm text-gray-600 mt-2">"${data.descricao}"</p><p class="text-xs text-gray-400 mt-2">Postado por: ${data.userEmail.split('@')[0]} - ${data.criadoEm.toDate().toLocaleDateString('pt-BR')}</p></div>`;
+        const vagaTemplate = (data, id) => `<div class="border rounded-lg p-4 flex items-start space-x-4" data-id="${id}"><img src="https://placehold.co/80x80/3B82F6/FFFFFF?text=${data.empresa.substring(0,2).toUpperCase()}" alt="Logo" class="w-20 h-20 rounded-lg object-cover"><div><h4 class="font-bold text-lg">${data.titulo}</h4><p class="text-sm font-semibold text-blue-600">${data.empresa}</p><p class="text-sm text-gray-600 mt-1"><i class="fas fa-map-marker-alt mr-1"></i>${data.local}</p><p class="text-sm text-gray-600 mt-1"><i class="fas fa-dollar-sign mr-1"></i>${data.salario}</p><button class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mt-2">Ver Detalhes</button></div></div>`;
+        const servicoTemplate = (data, id) => `<div class="border rounded-lg p-4" data-id="${id}"><h4 class="font-bold text-lg">${data.titulo}</h4><p class="text-sm text-gray-600 mt-2">"${data.descricao}"</p><p class="text-sm font-semibold text-blue-600 mt-2">Contato: ${data.contato}</p><p class="text-xs text-gray-400 mt-2">Oferecido por: ${data.nome}</p></div>`;
+        const vendaTemplate = (data, id) => `<div class="border rounded-lg" data-id="${id}"><img src="https://placehold.co/300x200/E2E8F0/4A5568?text=Produto" alt="Foto" class="w-full h-32 object-cover rounded-t-lg"><div class="p-4"><h4 class="font-bold">${data.produto}</h4><p class="text-lg font-semibold text-blue-600">R$ ${data.preco}</p><p class="text-xs text-gray-500">Vendedor: ${data.userEmail.split('@')[0]}</p></div></div>`;
 
-        setupForm('form-reclame', 'ver-reclamacoes', reclameTemplate);
-        setupForm('form-vagas', 'ver-vagas', vagaTemplate);
-        setupForm('form-servicos', 'ver-servicos', servicoTemplate);
-        setupForm('form-vendas', 'ver-produtos', vendaTemplate);
+        // INICIALIZAÇÃO DOS FORMULÁRIOS E MURAIS
+        setupForm('form-reclame', 'reclamacoes');
+        setupForm('form-vagas', 'vagas');
+        setupForm('form-servicos', 'servicos');
+        setupForm('form-vendas', 'vendas');
+
+        loadCommunityData('reclamacoes', 'ver-reclamacoes', reclameTemplate);
+        loadCommunityData('vagas', 'ver-vagas', vagaTemplate);
+        loadCommunityData('servicos', 'ver-servicos', servicoTemplate);
+        loadCommunityData('vendas', 'ver-produtos', vendaTemplate);
+
 
         // --- EVENT LISTENERS ---
         sendBtn.addEventListener('click', () => handleSendMessage(chatInput.value, currentEndpoint));

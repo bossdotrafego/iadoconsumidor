@@ -7,7 +7,6 @@ import 'dotenv/config';
 import admin from 'firebase-admin';
 
 // --- VERIFICAÇÃO DAS VARIÁVEIS DE AMBIENTE ---
-// Esta verificação garante que o app não vai quebrar se as chaves não forem encontradas.
 const firebaseCreds = {
     projectId: process.env.FIREBASE_PROJECT_ID,
     privateKey: process.env.FIREBASE_PRIVATE_KEY,
@@ -16,8 +15,8 @@ const firebaseCreds = {
 
 if (!firebaseCreds.projectId || !firebaseCreds.privateKey || !firebaseCreds.clientEmail || !process.env.GOOGLE_API_KEY) {
     console.error("ERRO FATAL: Uma ou mais variáveis de ambiente (Firebase ou Google API) não estão definidas.");
-    console.error("Verifique se o seu arquivo .env existe e contém todas as chaves necessárias.");
-    process.exit(1); // Encerra o processo com um código de erro.
+    console.error("Verifique se o seu arquivo .env (localmente) ou as variáveis de ambiente no Render estão configuradas.");
+    process.exit(1); 
 }
 
 // --- Configuração do Firebase Admin ---
@@ -25,14 +24,12 @@ try {
     admin.initializeApp({
         credential: admin.credential.cert({
             projectId: firebaseCreds.projectId,
-            // A chave privada precisa ter os caracteres de nova linha (\n) restaurados.
             privateKey: firebaseCreds.privateKey.replace(/\\n/g, '\n'),
             clientEmail: firebaseCreds.clientEmail
         })
     });
 } catch (error) {
     console.error("ERRO ao inicializar o Firebase Admin:", error.message);
-    console.error("Verifique se as credenciais no arquivo .env estão corretas.");
     process.exit(1);
 }
 
@@ -47,30 +44,21 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- Simulação de banco de dados (em memória) ---
-let reclamacoes = [];
-let vagas = [];
-let servicos = [];
-let vendas = [];
-
 // --- ROTA PRINCIPAL ---
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// --- NOVA ROTA PARA CRIAR O PERFIL DO UTILIZADOR NO BANCO DE DADOS ---
+// --- ROTA PARA CRIAR O PERFIL DO UTILIZADOR NO BANCO DE DADOS ---
 app.post('/create-user-record', async (req, res) => {
     const { uid, email } = req.body;
-
     if (!uid || !email) {
         return res.status(400).json({ error: 'UID e E-mail são obrigatórios.' });
     }
-
     try {
-        // Cria um novo documento na coleção 'users' com o ID do utilizador
         await db.collection('users').doc(uid).set({
             email: email,
-            cargo: 'gratuito', // Todo novo utilizador começa como gratuito
+            cargo: 'gratuito',
             criadoEm: admin.firestore.FieldValue.serverTimestamp()
         });
         res.status(201).json({ message: 'Perfil do utilizador criado com sucesso.' });
@@ -79,6 +67,57 @@ app.post('/create-user-record', async (req, res) => {
         res.status(500).json({ error: 'Falha ao criar perfil do utilizador.' });
     }
 });
+
+// --- NOVA ROTA DE WEBHOOK PARA A PERFECT PAY ---
+app.post('/perfectpay-webhook', async (req, res) => {
+    console.log("Webhook da Perfect Pay recebido!");
+    console.log("Corpo da requisição:", JSON.stringify(req.body, null, 2));
+
+    const { customer, sales_details } = req.body;
+    const customerEmail = customer?.email;
+    const status = sales_details?.status; // ex: "Aprovado"
+
+    if (!customerEmail) {
+        console.log("E-mail do cliente não encontrado no webhook.");
+        return res.status(400).send("E-mail do cliente não encontrado.");
+    }
+
+    if (status !== 'Aprovado') {
+        console.log(`Status da venda não é 'Aprovado' (Status: ${status}). Ignorando.`);
+        return res.status(200).send("Status não é 'Aprovado'.");
+    }
+
+    try {
+        const usersRef = db.collection('users');
+        const snapshot = await usersRef.where('email', '==', customerEmail).get();
+
+        if (snapshot.empty) {
+            console.log(`Nenhum usuário encontrado com o e-mail: ${customerEmail}`);
+            return res.status(404).send("Usuário não encontrado.");
+        }
+
+        // Atualiza o cargo de todos os usuários encontrados com este e-mail
+        const batch = db.batch();
+        snapshot.forEach(doc => {
+            console.log(`Atualizando usuário ${doc.id} para o cargo 'plus'.`);
+            const userDocRef = usersRef.doc(doc.id);
+            // ATENÇÃO: Mude 'plus' para 'premium' se o plano for outro.
+            batch.update(userDocRef, { cargo: 'plus' }); 
+        });
+
+        await batch.commit();
+        console.log(`Usuário(s) com e-mail ${customerEmail} atualizado(s) com sucesso.`);
+        res.status(200).send("Webhook processado com sucesso.");
+
+    } catch (error) {
+        console.error("Erro ao processar webhook e atualizar usuário:", error);
+        // ATENÇÃO: Se este erro ocorrer, pode ser necessário criar um índice no Firestore.
+        // O log de erro do Render/Firebase geralmente fornece um link para criar o índice com um clique.
+        console.error("Se o erro for sobre 'index', acesse o link nos logs para criar o índice no Firestore.");
+        res.status(500).send("Erro interno do servidor.");
+    }
+});
+
 
 // --- FUNÇÃO GENÉRICA DE CHAT ---
 async function runChat(prompt, userMessage, res) {
@@ -141,49 +180,6 @@ app.post('/chat-golpometro', async (req, res) => {
         res.status(500).json({ error: 'Não foi possível obter uma resposta da IA.' });
     }
 });
-
-// --- ROTAS PARA OS MURAIS DA COMUNIDADE ---
-
-// Mural de Reclamações
-app.get('/reclamacoes', (req, res) => {
-    res.json(reclamacoes);
-});
-app.post('/reclamacoes', (req, res) => {
-    const novaReclamacao = { id: Date.now(), ...req.body, data: new Date().toLocaleDateString('pt-BR') };
-    reclamacoes.unshift(novaReclamacao); // Adiciona no início
-    res.status(201).json(novaReclamacao);
-});
-
-// Portal de Vagas
-app.get('/vagas', (req, res) => {
-    res.json(vagas);
-});
-app.post('/vagas', (req, res) => {
-    const novaVaga = { id: Date.now(), ...req.body };
-    vagas.unshift(novaVaga);
-    res.status(201).json(novaVaga);
-});
-
-// Mural de Serviços
-app.get('/servicos', (req, res) => {
-    res.json(servicos);
-});
-app.post('/servicos', (req, res) => {
-    const novoServico = { id: Date.now(), ...req.body };
-    servicos.unshift(novoServico);
-    res.status(201).json(novoServico);
-});
-
-// Marketplace de Vendas
-app.get('/vendas', (req, res) => {
-    res.json(vendas);
-});
-app.post('/vendas', (req, res) => {
-    const novaVenda = { id: Date.now(), ...req.body };
-    vendas.unshift(novaVenda);
-    res.status(201).json(novaVenda);
-});
-
 
 // Iniciar servidor
 app.listen(PORT, () => {
