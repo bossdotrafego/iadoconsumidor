@@ -15,8 +15,7 @@
         .tooltip .tooltiptext { visibility: hidden; width: 140px; background-color: #374151; color: #fff; text-align: center; border-radius: 6px; padding: 5px; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -70px; opacity: 0; transition: opacity 0.3s; }
         .tooltip .tooltiptext::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #374151 transparent transparent transparent; }
         .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
-        .chat-container { height: calc(100vh - 150px); } /* Ajuste para mobile */
-        @media (min-width: 768px) { .chat-container { height: calc(100vh - 180px); } }
+        .chat-container { height: calc(100vh - 180px); } 
         .chat-message-animation { animation: fadeIn 0.5s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .dot-flashing { position: relative; width: 5px; height: 5px; border-radius: 5px; background-color: #4b5563; color: #4b5563; animation: dotFlashing 1s infinite linear alternate; animation-delay: .5s; }
@@ -24,11 +23,14 @@
         .dot-flashing::before { left: -10px; width: 5px; height: 5px; border-radius: 5px; background-color: #4b5563; color: #4b5563; animation: dotFlashing 1s infinite alternate; animation-delay: 0s; }
         .dot-flashing::after { left: 10px; width: 5px; height: 5px; border-radius: 5px; background-color: #4b5563; color: #4b5563; animation: dotFlashing 1s infinite alternate; animation-delay: 1s; }
         @keyframes dotFlashing { 0% { background-color: #4b5563; } 50%, 100% { background-color: #d1d5db; } }
-        /* Estilos para abas dos novos modais */
         .tab-btn { border-bottom: 2px solid transparent; padding-bottom: 8px; }
         .tab-btn.active { border-bottom-color: #3b82f6; color: #3b82f6; font-weight: 600; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
+        /* Animação para o menu mobile */
+        #mobileMenuModal.open #mobileMenuPanel {
+            transform: translateX(0);
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans">
@@ -54,13 +56,16 @@
                     <div class="bg-blue-600 text-white p-2 rounded-lg mr-3"><i class="fas fa-robot text-xl"></i></div>
                     <h1 class="text-xl font-bold text-blue-800">IA do Consumidor</h1>
                 </div>
-                <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2">
                     <div id="upgrade-container"></div> <!-- Container para o botão de upgrade -->
                     <button id="plansBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors hidden sm:block">VER PLANOS <i class="fas fa-crown ml-1"></i></button>
                     <div id="auth-container">
                         <!-- Botão de Sair/Entrar será inserido aqui pelo JS -->
                     </div>
-                    <button id="mobileMenuBtn" class="md:hidden text-2xl text-gray-700"><i class="fas fa-bars"></i></button>
+                    <!-- Botão do menu hambúrguer para mobile -->
+                    <button id="mobileMenuBtn" class="lg:hidden p-2 text-gray-700">
+                        <i class="fas fa-bars text-2xl"></i>
+                    </button>
                 </div>
             </div>
         </header>
@@ -421,21 +426,6 @@
         </div>
     </div>
 
-    <!-- Modal do Menu Mobile -->
-    <div id="mobileMenuModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-end hidden z-50">
-        <div class="bg-white rounded-t-2xl shadow-xl w-full">
-            <div class="p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-bold text-blue-800">Menu de Ferramentas</h3>
-                    <button id="closeMobileMenuModal" class="text-gray-500 hover:text-gray-700 text-3xl">&times;</button>
-                </div>
-                <div id="mobile-sidebar-content" class="space-y-4">
-                    <!-- O conteúdo da sidebar será injetado aqui pelo JavaScript -->
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Login/Signup Modal -->
     <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-50 p-4">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto">
@@ -474,6 +464,7 @@
 
     <script type="module">
         // --- IMPORTS DO FIREBASE ---
+        // CORREÇÃO: Removida a formatação de markdown dos links de importação
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { 
             getAuth, 
@@ -537,10 +528,8 @@
         const vagasModal = document.getElementById('vagasModal');
         const servicosModal = document.getElementById('servicosModal');
         const vendasModal = document.getElementById('vendasModal');
-        const mobileMenuModal = document.getElementById('mobileMenuModal');
         // Botões de Abrir
         const plansBtn = document.getElementById('plansBtn');
-        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
         const btnAdvogado = document.getElementById('btn-advogado');
         const btnGolpes = document.getElementById('btn-golpes');
         const btnReclame = document.getElementById('btn-reclame');
@@ -555,7 +544,6 @@
         const closeVagasModal = document.getElementById('closeVagasModal');
         const closeServicosModal = document.getElementById('closeServicosModal');
         const closeVendasModal = document.getElementById('closeVendasModal');
-        const closeMobileMenuModal = document.getElementById('closeMobileMenuModal');
         // Golpômetro
         const golpometroFileInput = document.getElementById('golpometro-file-input');
         const golpometroUploadBtn = document.getElementById('golpometro-upload-btn');
@@ -589,7 +577,6 @@
 
                 // LÓGICA DO BOTÃO DE UPGRADE (Perfect Pay)
                 if (currentUser.cargo === 'gratuito' && currentUser.email) {
-                    // CORREÇÃO: Substitua o link abaixo pelo seu link de checkout da Perfect Pay
                     const checkoutLink = "https://go.perfectpay.com.br/PPU38CPS0M8"; 
                     const linkComEmail = `${checkoutLink}?email=${encodeURIComponent(currentUser.email)}`;
                     upgradeContainer.innerHTML = `<a href="${linkComEmail}" target="_blank" id="linkUpgrade" class="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold px-4 py-2 rounded-lg text-sm transition-colors flex items-center"><i class="fas fa-star mr-2"></i>Fazer Upgrade</a>`;
@@ -676,7 +663,6 @@
         setupModal(btnVagas, vagasModal, closeVagasModal);
         setupModal(btnServicos, servicosModal, closeServicosModal);
         setupModal(btnVendas, vendasModal, closeVendasModal);
-        setupModal(mobileMenuBtn, mobileMenuModal, closeMobileMenuModal);
 
         // --- LÓGICA DAS ABAS (TABS) ---
         function setupTabs(modalElement) {
@@ -918,27 +904,1096 @@
             if (event.key === 'Enter') handleSendMessage(chatInput.value, currentEndpoint);
         });
 
-        // Botões Especialistas
-        document.getElementById('btn-advogado-ia').addEventListener('click', () => activateChatMode('Advogado IA', 'Modo Advogado IA ativado. Por favor, descreva seu caso para que eu possa fornecer as orientações.', '/chat-advogado'));
-        document.getElementById('btn-procon').addEventListener('click', () => activateChatMode('Especialista PROCON', 'Modo PROCON ativado. Qual seu problema? Vou te guiar sobre como registrar sua reclamação.', '/chat-procon'));
-        document.getElementById('btn-telefonia').addEventListener('click', () => activateChatMode('Consultor de Telefonia', 'Modo Telefonia ativado. Me diga qual o problema com sua operadora (fatura, sinal, serviço) para eu te ajudar.', '/chat-telefonia'));
-        document.getElementById('btn-nome-sujo').addEventListener('click', () => activateChatMode('Assessor Financeiro', 'Modo Nome Sujo ativado. Posso te ajudar a consultar seu CPF, entender dívidas e encontrar o caminho para limpar seu nome.', '/chat-nomesujo'));
+        // --- EVENT LISTENERS PARA BOTÕES (DESKTOP E MOBILE) ---
+        function setupButtonListeners(buttonId, mobileButtonId, action) {
+            const btn = document.getElementById(buttonId);
+            const mobileBtn = document.getElementById(mobileButtonId);
+            if (btn) btn.addEventListener('click', action);
+            if (mobileBtn) mobileBtn.addEventListener('click', action);
+        }
+
+        // Especialistas
+        setupButtonListeners('btn-advogado-ia', 'mobile-btn-advogado-ia', () => activateChatMode('Advogado IA', 'Modo Advogado IA ativado. Por favor, descreva seu caso para que eu possa fornecer as orientações.', '/chat-advogado'));
+        setupButtonListeners('btn-procon', 'mobile-btn-procon', () => activateChatMode('Especialista PROCON', 'Modo PROCON ativado. Qual seu problema? Vou te guiar sobre como registrar sua reclamação.', '/chat-procon'));
+        setupButtonListeners('btn-telefonia', 'mobile-btn-telefonia', () => activateChatMode('Consultor de Telefonia', 'Modo Telefonia ativado. Me diga qual o problema com sua operadora (fatura, sinal, serviço) para eu te ajudar.', '/chat-telefonia'));
+        setupButtonListeners('btn-nome-sujo', 'mobile-btn-nome-sujo', () => activateChatMode('Assessor Financeiro', 'Modo Nome Sujo ativado. Posso te ajudar a consultar seu CPF, entender dívidas e encontrar o caminho para limpar seu nome.', '/chat-nomesujo'));
+        setupButtonListeners('btn-advogado', 'mobile-btn-advogado', () => advogadosModal.classList.remove('hidden'));
+
+        // Comunidade
+        setupButtonListeners('btn-golpes', 'mobile-btn-golpes', () => golpesModal.classList.remove('hidden'));
+        setupButtonListeners('btn-reclame', 'mobile-btn-reclame', () => reclameModal.classList.remove('hidden'));
+        setupButtonListeners('btn-vagas', 'mobile-btn-vagas', () => vagasModal.classList.remove('hidden'));
+        setupButtonListeners('btn-servicos', 'mobile-btn-servicos', () => servicosModal.classList.remove('hidden'));
+        setupButtonListeners('btn-vendas', 'mobile-btn-vendas', () => vendasModal.classList.remove('hidden'));
+
+    </script>
+
+</body>
+
+</html>"
+I have been asked to "melhore apenas a versão mobile do meu site que já está funcionando com Firebase. A versão desktop está boa, mas no celular a experiência está ruim.
+Mantenha tudo que já está funcionando, como a integração com Firebase, autenticação, e estrutura geral do HTML e do sistema.
+
+Quero que você resolva:
+O menu hambúrguer está muito escondido, difícil de clicar. Deixe ele visível, centralizado no canto superior direito e com ícone claro (pode usar o ícone do Font Awesome).
+Quando a pessoa clica no botão de menu, o menu lateral precisa abrir ocupando bem a tela, com botões grandes e visíveis.
+Deixe o botão de “Fazer Upgrade” e o botão “Sair” com tamanho adequado no mobile.
+Os botões no menu lateral precisam ter espaçamento, cor legível, e clique fácil (pode usar Tailwind para tudo isso).
+Ajuste responsivo total, principalmente para largura de tela menor que 480px.
+Mantenha a identidade visual clean, mas tudo precisa ficar claro, intuitivo e fácil de clicar no dedo.
+O botão do meio de criar conta deve continuar funcionando.
+Parte do código do header e menu atual (referência para você ajustar):
+html
+Copiar código
+<header class="w-full flex justify-between items-center px-4 py-3 bg-white shadow-md">
+  <div class="flex items-center gap-2">
+    <img src="logo.png" alt="Logo" class="w-8 h-8">
+    <h1 class="text-lg font-bold text-blue-700">IA do Consumidor</h1>
+  </div>
+  <div class="flex items-center gap-3">
+    <button class="bg-yellow-400 text-black px-3 py-1 rounded font-semibold">Fazer Upgrade</button>
+    <button class="bg-red-500 text-white px-3 py-1 rounded font-semibold">Sair</button>
+    <button class="lg:hidden block" id="mobileMenuBtn">
+      <i class="fas fa-bars text-2xl text-gray-700"></i>
+    </button>
+  </div></header><!-- Menu lateral (hambúrguer) --><div id="mobileMenuModal" class="hidden fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 z-50">
+  <div class="w-64 bg-white h-full shadow-lg p-4">
+    <button id="closeMenu" class="text-gray-600 text-xl mb-4">
+      <i class="fas fa-times"></i>
+    </button>
+    <nav class="flex flex-col gap-4">
+      <a href="#" class="text-blue-600 font-medium">Início</a>
+      <a href="#" class="text-blue-600 font-medium">Ferramentas</a>
+      <a href="#" class="text-blue-600 font-medium">Minha Conta</a>
+    </nav>
+  </div></div>".
+
+This is a detailed request to improve the mobile menu. My previous attempt with a horizontal scrollbar was not what the user wanted, and they've now provided a clear brief. I will follow this new brief.
+
+**Plan:**
+
+1.  **Header Adjustments:**
+    * I will re-introduce a hamburger menu button (`mobileMenuBtn`). The user wants it visible and easy to click. I'll use `lg:hidden` to show it only on smaller screens and add padding for a better touch target.
+    * I'll adjust the padding on the "Upgrade" and "Sair" buttons so they look better on mobile. The container `div` for these buttons will have its spacing adjusted (`space-x-2`).
+
+2.  **Mobile Menu Modal:**
+    * I will create a new, full-screen overlay modal (`mobileMenuModal`).
+    * Inside it, a panel (`mobileMenuPanel`) will slide in from the right. This is a modern and standard mobile menu pattern.
+    * The panel will have a clear "close" button.
+    * The panel will contain all the tool buttons. I will **not** clone them from the desktop sidebar. Instead, I will list them directly in the HTML to have full control over their mobile-specific styling.
+    * The buttons will be styled to be large, full-width, with clear text and icons, and good spacing, as requested.
+
+3.  **JavaScript Logic:**
+    * I will add the necessary JavaScript to handle the opening and closing of this new slide-in menu.
+    * This includes getting the new elements (`mobileMenuBtn`, `mobileMenuModal`, `closeMobileMenuBtn`) and adding `click` event listeners.
+    * The listeners will toggle CSS classes to show/hide the modal and trigger the slide-in/out animation.
+    * I will create a helper function `setupMobileButtonListeners` to connect the actions of the new mobile buttons to the existing functions (like opening modals or activating chat modes) without duplicating logic.
+
+4.  **CSS Styling:**
+    * I'll add a small CSS rule to handle the `transform` for the slide-in animation when the `open` class is added to the modal.
+
+This plan directly addresses every point made by the user, from the hamburger icon's visibility to the styling of the buttons inside the slide-out panel. It's a significant improvement over the previous mobile experience. I will now edit the document.Com certeza! Entendi perfeitamente o seu feedback. A experiência mobile precisa ser tão boa quanto a do desktop, com botões fáceis de usar e um layout que aproveite bem a tela.
+
+Peço desculpas pela versão anterior não ter refletido isso. Desta vez, fiz uma reformulação completa na interface mobile, seguindo exatamente o que você pediu.
+
+**As principais melhorias foram:**
+
+1.  **Menu Visível e Acessível:** O ícone do menu (hambúrguer) agora está no canto superior direito, com um tamanho maior para facilitar o clique.
+2.  **Painel Lateral Moderno:** Ao clicar no menu, um painel desliza da direita para a esquerda, ocupando a maior parte da tela.
+3.  **Botões Grandes e Claros:** Dentro do novo menu, todos os botões de ferramentas são grandes, bem espaçados e com texto legível, otimizados para o toque.
+4.  **Ajuste nos Botões do Cabeçalho:** Os botões "Fazer Upgrade" e "Sair" também foram ajustados para terem um tamanho mais adequado em telas menores.
+
+Abaixo está o código no Canvas com todas essas melhorias já aplicadas.
+
+
+```html
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IA do Consumidor - Seus direitos protegidos</title>
+    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
+    <link rel="stylesheet" href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css)">
+    <link rel="preconnect" href="[https://fonts.googleapis.com](https://fonts.googleapis.com)">
+    <link rel="preconnect" href="[https://fonts.gstatic.com](https://fonts.gstatic.com)" crossorigin>
+    <link href="[https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap](https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap)" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .tooltip { position: relative; display: inline-block; }
+        .tooltip .tooltiptext { visibility: hidden; width: 140px; background-color: #374151; color: #fff; text-align: center; border-radius: 6px; padding: 5px; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -70px; opacity: 0; transition: opacity 0.3s; }
+        .tooltip .tooltiptext::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #374151 transparent transparent transparent; }
+        .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
+        .chat-container { height: calc(100vh - 180px); } 
+        .chat-message-animation { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .dot-flashing { position: relative; width: 5px; height: 5px; border-radius: 5px; background-color: #4b5563; color: #4b5563; animation: dotFlashing 1s infinite linear alternate; animation-delay: .5s; }
+        .dot-flashing::before, .dot-flashing::after { content: ''; display: inline-block; position: absolute; top: 0; }
+        .dot-flashing::before { left: -10px; width: 5px; height: 5px; border-radius: 5px; background-color: #4b5563; color: #4b5563; animation: dotFlashing 1s infinite alternate; animation-delay: 0s; }
+        .dot-flashing::after { left: 10px; width: 5px; height: 5px; border-radius: 5px; background-color: #4b5563; color: #4b5563; animation: dotFlashing 1s infinite alternate; animation-delay: 1s; }
+        @keyframes dotFlashing { 0% { background-color: #4b5563; } 50%, 100% { background-color: #d1d5db; } }
+        .tab-btn { border-bottom: 2px solid transparent; padding-bottom: 8px; }
+        .tab-btn.active { border-bottom-color: #3b82f6; color: #3b82f6; font-weight: 600; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        /* Animação para o menu mobile */
+        #mobileMenuModal.open #mobileMenuPanel {
+            transform: translateX(0);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+
+    <!-- Tela de Login/Boas-vindas (Aparece para usuários deslogados) -->
+    <div id="auth-wall" class="flex flex-col items-center justify-center min-h-screen text-center p-4">
+        <div class="bg-blue-600 text-white p-4 rounded-lg mb-4 shadow-lg">
+            <i class="fas fa-robot text-5xl"></i>
+        </div>
+        <h1 class="text-3xl md:text-4xl font-bold text-blue-800">Bem-vindo à IA do Consumidor</h1>
+        <p class="text-gray-600 mt-2 mb-8 max-w-md">A sua plataforma completa para entender e defender seus direitos. Acesse nossas ferramentas e especialistas virtuais.</p>
+        <button id="mainLoginBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition-transform transform hover:scale-105 shadow-lg">
+            Acessar Plataforma
+        </button>
+    </div>
+
+    <!-- Conteúdo Principal da Aplicação (inicialmente escondido) -->
+    <div id="app-container" class="hidden">
+        <!-- Header -->
+        <header class="bg-white shadow-md sticky top-0 z-40">
+            <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+                <div class="flex items-center">
+                    <div class="bg-blue-600 text-white p-2 rounded-lg mr-3"><i class="fas fa-robot text-xl"></i></div>
+                    <h1 class="text-xl font-bold text-blue-800">IA do Consumidor</h1>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <div id="upgrade-container"></div> <!-- Container para o botão de upgrade -->
+                    <button id="plansBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors hidden sm:block">VER PLANOS <i class="fas fa-crown ml-1"></i></button>
+                    <div id="auth-container">
+                        <!-- Botão de Sair/Entrar será inserido aqui pelo JS -->
+                    </div>
+                    <!-- Botão do menu hambúrguer para mobile -->
+                    <button id="mobileMenuBtn" class="lg:hidden p-2 text-gray-700">
+                        <i class="fas fa-bars text-2xl"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex flex-col md:flex-row container mx-auto px-4 mt-4 items-start">
+            <!-- Left Sidebar - Desktop -->
+            <aside id="desktop-sidebar" class="hidden md:block w-full md:w-1/5 lg:w-1/6 bg-blue-900 text-white p-4 rounded-lg mr-4 self-start">
+                
+                <!-- Botões Especialistas -->
+                <h3 class="text-xs font-bold uppercase text-blue-300 mb-2">Especialistas <i class="fas fa-star text-yellow-400"></i></h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="btn-advogado-ia" class="w-full bg-slate-700 hover:bg-slate-600 text-white p-3 rounded-lg transition-colors"><i class="fas fa-robot mb-1"></i><br><span class="text-xs">Advogado IA</span></button>
+                    <button id="btn-procon" class="w-full bg-slate-700 hover:bg-slate-600 text-white p-3 rounded-lg transition-colors"><i class="fas fa-shield-alt mb-1"></i><br><span class="text-xs">PROCON</span></button>
+                    <button id="btn-telefonia" class="w-full bg-slate-700 hover:bg-slate-600 text-white p-3 rounded-lg transition-colors"><i class="fas fa-mobile-alt mb-1"></i><br><span class="text-xs">Telefonia</span></button>
+                    <button id="btn-nome-sujo" class="w-full bg-slate-700 hover:bg-slate-600 text-white p-3 rounded-lg transition-colors"><i class="fas fa-file-invoice-dollar mb-1"></i><br><span class="text-xs">Nome Sujo</span></button>
+                    <button id="btn-advogado" class="w-full bg-slate-700 hover:bg-slate-600 text-white p-3 rounded-lg transition-colors"><i class="fas fa-user-tie mb-1"></i><br><span class="text-xs">Advogado</span></button>
+                </div>
+
+                <!-- Botões Gratuitos -->
+                <h3 class="text-xs font-bold uppercase text-blue-300 mt-6 mb-2">Comunidade e Ferramentas</h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="tooltip"><button id="btn-golpes" class="w-full bg-blue-800 hover:bg-blue-700 text-white p-3 rounded-lg transition-colors"><i class="fas fa-user-secret mb-1"></i><br><span class="text-xs">Golpes Online</span></button><span class="tooltiptext">Conheça e denuncie golpistas</span></div>
+                    <div class="tooltip"><button id="btn-reclame" class="w-full bg-blue-800 hover:bg-blue-700 text-white p-3 rounded-lg transition-colors"><i class="fas fa-comment-dots mb-1"></i><br><span class="text-xs">Reclame Aqui</span></button><span class="tooltiptext">Faça uma reclamação pública</span></div>
+                    <div class="tooltip"><button id="btn-vagas" class="w-full bg-blue-800 hover:bg-blue-700 text-white p-3 rounded-lg transition-colors"><i class="fas fa-briefcase mb-1"></i><br><span class="text-xs">Vagas</span></button><span class="tooltiptext">Divulgue e encontre vagas</span></div>
+                    <div class="tooltip"><button id="btn-servicos" class="w-full bg-blue-800 hover:bg-blue-700 text-white p-3 rounded-lg transition-colors"><i class="fas fa-tools mb-1"></i><br><span class="text-xs">Serviços</span></button><span class="tooltiptext">Ofereça seus serviços</span></div>
+                    <div class="tooltip"><button id="btn-vendas" class="w-full bg-blue-800 hover:bg-blue-700 text-white p-3 rounded-lg transition-colors"><i class="fas fa-handshake mb-1"></i><br><span class="text-xs">Vendas</span></button><span class="tooltiptext">Anuncie produtos</span></div>
+                </div>
+                
+            </aside>
+            
+            <!-- Chat Area -->
+            <div class="w-full bg-white shadow-md rounded-lg overflow-hidden flex flex-col">
+                <div id="chat-messages" class="chat-container overflow-y-auto p-4 space-y-4">
+                    <!-- Welcome Message -->
+                    <div class="chat-message-animation flex items-start">
+                        <div class="bg-blue-100 p-3 rounded-lg max-w-lg">
+                            <div class="flex items-center mb-2">
+                                <div class="bg-blue-600 text-white w-6 h-6 flex items-center justify-center rounded-full mr-2"><i class="fas fa-robot text-xs"></i></div>
+                                <span id="bot-name" class="font-bold text-blue-800">IA do Consumidor</span>
+                            </div>
+                            <p class="text-gray-800">Olá! Sou a IA do Consumidor. Para começar, clique no menu de ferramentas ou digite sua dúvida geral.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="border-t border-gray-200 p-4 bg-white">
+                    <div class="flex items-center">
+                        <input type="text" id="chat-input" placeholder="Digite sua dúvida ou problema..." class="flex-1 border border-gray-300 rounded-l-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                        <button id="send-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-r-lg transition-colors"><i class="fas fa-paper-plane"></i></button>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">As orientações são para fins informativos e não substituem uma consulta jurídica formal.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAIS -->
+    <!-- Plans Modal -->
+    <div id="plansModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold text-blue-800">Nossos Planos</h3>
+                    <button id="closePlansModal" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+                </div>
+                <div class="space-y-4">
+                    <!-- Free Plan -->
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h4 class="font-bold text-lg">Básico</h4>
+                                <p class="text-gray-600 text-sm">Grátis</p>
+                            </div>
+                            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">SEU PLANO ATUAL</span>
+                        </div>
+                        <ul class="mt-3 space-y-2 text-sm text-gray-700">
+                            <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i><span>Chat com IA (limitado)</span></li>
+                            <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i><span>Acesso às ferramentas da comunidade</span></li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Plus Plan -->
+                    <div class="border-2 border-blue-500 rounded-lg p-4 bg-blue-50">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h4 class="font-bold text-lg">Plus</h4>
+                                <p class="text-gray-600 text-sm">R$ 19,90/mês</p>
+                            </div>
+                            <span class="bg-blue-500 text-white px-2 py-1 rounded text-xs font-medium">POPULAR</span>
+                        </div>
+                        <ul class="mt-3 space-y-2 text-sm text-gray-700">
+                            <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i><span>Tudo do Básico</span></li>
+                            <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i><span>Chat com Advogado IA ilimitado</span></li>
+                            <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i><span>Análise de problemas de Telefonia</span></li>
+                            <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i><span>Guia para limpar Nome Sujo</span></li>
+                        </ul>
+                        <a id="linkPremiumPlus" href="#" target="_blank" class="mt-4 w-full block text-center bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium transition-colors">Assinar Plus</a>
+                    </div>
+                    
+                    <!-- Premium Plan -->
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h4 class="font-bold text-lg">Premium</h4>
+                                <p class="text-gray-600 text-sm">R$ 49,90/mês</p>
+                            </div>
+                        </div>
+                         <ul class="mt-3 space-y-2 text-sm text-gray-700">
+                            <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i><span>Tudo do Plus</span></li>
+                            <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i><span>Contato com Advogado Parceiro</span></li>
+                            <li class="flex items-center"><i class="fas fa-check text-green-500 mr-2"></i><span>Geração de documentos para PROCON</span></li>
+                        </ul>
+                        <a id="linkPremium" href="#" target="_blank" class="mt-4 w-full block text-center bg-gray-800 hover:bg-gray-700 text-white py-2 rounded-lg font-medium transition-colors">Assinar Premium</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advogados Parceiros Modal -->
+    <div id="advogadosModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-2xl font-bold text-blue-800">Advogados Parceiros</h3>
+                    <button id="closeAdvogadosModal" class="text-gray-500 hover:text-gray-700 text-3xl">&times;</button>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- Card Advogado 1 -->
+                    <div class="border rounded-lg p-4 text-center flex flex-col items-center">
+                        <img src="[https://placehold.co/100x100/E2E8F0/4A5568?text=Adv](https://placehold.co/100x100/E2E8F0/4A5568?text=Adv)" alt="Foto do Advogado" class="w-24 h-24 rounded-full mb-4 object-cover">
+                        <h4 class="font-bold text-lg">Dr. Carlos Mendes</h4>
+                        <p class="text-sm text-gray-600 mb-4">Direito do Consumidor</p>
+                        <a href="[https://wa.me/5511999999991](https://wa.me/5511999999991)" target="_blank" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center justify-center">
+                            <i class="fab fa-whatsapp mr-2"></i> Contato
+                        </a>
+                    </div>
+                    <!-- Card Advogado 2 -->
+                    <div class="border rounded-lg p-4 text-center flex flex-col items-center">
+                        <img src="[https://placehold.co/100x100/E2E8F0/4A5568?text=Adv](https://placehold.co/100x100/E2E8F0/4A5568?text=Adv)" alt="Foto da Advogada" class="w-24 h-24 rounded-full mb-4 object-cover">
+                        <h4 class="font-bold text-lg">Dra. Ana Pereira</h4>
+                        <p class="text-sm text-gray-600 mb-4">Problemas com Telefonia</p>
+                        <a href="[https://wa.me/5511999999992](https://wa.me/5511999999992)" target="_blank" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center justify-center">
+                            <i class="fab fa-whatsapp mr-2"></i> Contato
+                        </a>
+                    </div>
+                    <!-- Card Advogado 3 -->
+                    <div class="border rounded-lg p-4 text-center flex flex-col items-center">
+                        <img src="[https://placehold.co/100x100/E2E8F0/4A5568?text=Adv](https://placehold.co/100x100/E2E8F0/4A5568?text=Adv)" alt="Foto do Advogado" class="w-24 h-24 rounded-full mb-4 object-cover">
+                        <h4 class="font-bold text-lg">Dr. Ricardo Souza</h4>
+                        <p class="text-sm text-gray-600 mb-4">Dívidas e Nome Sujo</p>
+                        <a href="[https://wa.me/5511999999993](https://wa.me/5511999999993)" target="_blank" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center justify-center">
+                            <i class="fab fa-whatsapp mr-2"></i> Contato
+                        </a>
+                    </div>
+                    <!-- Card Advogado 4 -->
+                    <div class="border rounded-lg p-4 text-center flex flex-col items-center">
+                        <img src="[https://placehold.co/100x100/E2E8F0/4A5568?text=Adv](https://placehold.co/100x100/E2E8F0/4A5568?text=Adv)" alt="Foto da Advogada" class="w-24 h-24 rounded-full mb-4 object-cover">
+                        <h4 class="font-bold text-lg">Dra. Juliana Lima</h4>
+                        <p class="text-sm text-gray-600 mb-4">Causas Cíveis Gerais</p>
+                        <a href="[https://wa.me/5511999999994](https://wa.me/5511999999994)" target="_blank" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center justify-center">
+                            <i class="fab fa-whatsapp mr-2"></i> Contato
+                        </a>
+                    </div>
+                </div>
+                <p class="text-xs text-center text-gray-500 mt-6">A negociação e contratação são de responsabilidade exclusiva do usuário e do advogado.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Golpes Online Modal -->
+    <div id="golpesModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-2xl font-bold text-blue-800">Central de Segurança: Golpes Online</h3>
+                    <button id="closeGolpesModal" class="text-gray-500 hover:text-gray-700 text-3xl">&times;</button>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Coluna da Esquerda: Golpômetro -->
+                    <div class="border-r-0 md:border-r md:pr-8 border-gray-200">
+                        <h4 class="text-lg font-semibold mb-2 flex items-center"><i class="fas fa-thermometer-half mr-2 text-red-500"></i>Golpômetro</h4>
+                        <p class="text-sm text-gray-600 mb-4">Envie um print da oferta, e-mail ou conversa suspeita para nossa IA fazer uma análise de risco.</p>
+                        
+                        <input type="file" id="golpometro-file-input" class="hidden" accept="image/*">
+                        <button id="golpometro-upload-btn" class="w-full border-2 border-dashed border-gray-300 rounded-lg p-4 text-center text-gray-500 hover:bg-gray-50 transition">
+                            <i class="fas fa-cloud-upload-alt text-2xl mb-2"></i><br>
+                            Clique para escolher um print
+                        </button>
+
+                        <div id="golpometro-preview-container" class="mt-4 hidden">
+                             <img id="golpometro-preview-img" src="#" alt="Preview do print" class="max-h-40 w-auto mx-auto rounded-lg">
+                        </div>
+                        
+                        <button id="golpometro-analise-btn" class="w-full mt-4 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors disabled:bg-red-300" disabled>Analisar Risco de Golpe</button>
+                        <div id="golpometro-result" class="mt-4 p-4 border rounded-lg bg-gray-50 hidden relative"></div>
+                    </div>
+
+                    <!-- Coluna da Direita: Lista de Golpes -->
+                    <div>
+                        <h4 class="text-lg font-semibold mb-2 flex items-center"><i class="fas fa-list-ul mr-2 text-blue-500"></i>Golpes Comuns</h4>
+                        <p class="text-sm text-gray-600 mb-4">Fique atento! Estes são alguns dos golpes mais aplicados no Brasil.</p>
+                        <ul class="space-y-2 text-sm">
+                            <li class="p-2 bg-gray-100 rounded"><strong>Golpe do Falso Empréstimo:</strong> Exigem um depósito adiantado para "liberar" o crédito.</li>
+                            <li class="p-2 bg-gray-100 rounded"><strong>Golpe do Leilão Falso:</strong> Sites fakes de leilões de carros com preços muito baixos.</li>
+                            <li class="p-2 bg-gray-100 rounded"><strong>Golpe da Tarefa Online:</strong> Prometem dinheiro fácil para curtir vídeos ou seguir perfis.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reclame Aqui Modal -->
+    <div id="reclameModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-auto">
+            <div class="p-6 h-[90vh] flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-2xl font-bold text-blue-800">Mural de Reclamações</h3>
+                    <button id="closeReclameModal" class="text-gray-500 hover:text-gray-700 text-3xl">&times;</button>
+                </div>
+                <div class="border-b border-gray-200 mb-4">
+                    <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                        <button class="tab-btn active" data-tab="ver-reclamacoes">Ver Reclamações</button>
+                        <button class="tab-btn" data-tab="criar-reclamacao">Fazer Reclamação</button>
+                    </nav>
+                </div>
+                <div id="ver-reclamacoes-container" class="flex-grow overflow-y-auto">
+                    <!-- Conteúdo da Aba Ver Reclamações -->
+                    <div id="ver-reclamacoes" class="tab-content active space-y-4">
+                        <!-- As reclamações do Firestore serão inseridas aqui -->
+                    </div>
+                    <!-- Conteúdo da Aba Criar Reclamação -->
+                    <div id="criar-reclamacao" class="tab-content">
+                        <p class="text-sm text-gray-600 mb-4">Poste sua reclamação para alertar outros consumidores. Sua queixa ficará pública em nosso mural após aprovação.</p>
+                        <form id="form-reclame">
+                            <input name="empresa" type="text" placeholder="Nome da Empresa" class="w-full border p-2 rounded-lg mb-4" required>
+                            <input name="titulo" type="text" placeholder="Título da Reclamação" class="w-full border p-2 rounded-lg mb-4" required>
+                            <textarea name="descricao" rows="5" placeholder="Descreva sua reclamação em detalhes..." class="w-full border p-2 rounded-lg mb-4" required></textarea>
+                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Publicar Reclamação</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vagas Modal -->
+    <div id="vagasModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-auto">
+             <div class="p-6 h-[90vh] flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-2xl font-bold text-blue-800">Portal de Vagas</h3>
+                    <button id="closeVagasModal" class="text-gray-500 hover:text-gray-700 text-3xl">&times;</button>
+                </div>
+                <div class="border-b border-gray-200 mb-4">
+                    <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                        <button class="tab-btn active" data-tab="ver-vagas">Ver Vagas</button>
+                        <button class="tab-btn" data-tab="anunciar-vaga">Anunciar Vaga</button>
+                    </nav>
+                </div>
+                <div class="flex-grow overflow-y-auto">
+                    <!-- Conteúdo da Aba Ver Vagas -->
+                    <div id="ver-vagas" class="tab-content active space-y-4">
+                         <!-- As vagas do Firestore serão inseridas aqui -->
+                    </div>
+                    <!-- Conteúdo da Aba Anunciar Vaga -->
+                    <div id="anunciar-vaga" class="tab-content">
+                        <form id="form-vagas">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <input name="titulo" type="text" placeholder="Título da Vaga" class="border p-2 rounded-lg" required>
+                                <input name="empresa" type="text" placeholder="Nome da Empresa" class="border p-2 rounded-lg" required>
+                                <input name="local" type="text" placeholder="Localização (Ex: São Paulo, SP)" class="border p-2 rounded-lg" required>
+                                <input name="salario" type="text" placeholder="Salário (ou a combinar)" class="border p-2 rounded-lg" required>
+                            </div>
+                            <textarea name="descricao" rows="4" placeholder="Descrição da vaga e requisitos..." class="w-full border p-2 rounded-lg mt-4" required></textarea>
+                            <input name="contato" type="email" placeholder="E-mail para contato" class="w-full border p-2 rounded-lg mt-4" required>
+                            <button type="submit" class="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Enviar Vaga para Aprovação</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Serviços Modal -->
+    <div id="servicosModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-auto">
+             <div class="p-6 h-[90vh] flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-2xl font-bold text-blue-800">Mural de Serviços</h3>
+                    <button id="closeServicosModal" class="text-gray-500 hover:text-gray-700 text-3xl">&times;</button>
+                </div>
+                <div class="border-b border-gray-200 mb-4">
+                    <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                        <button class="tab-btn active" data-tab="ver-servicos">Ver Serviços</button>
+                        <button class="tab-btn" data-tab="oferecer-servico">Oferecer Serviço</button>
+                    </nav>
+                </div>
+                <div class="flex-grow overflow-y-auto">
+                    <!-- Conteúdo da Aba Ver Serviços -->
+                    <div id="ver-servicos" class="tab-content active grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Os serviços do Firestore serão inseridos aqui -->
+                    </div>
+                    <!-- Conteúdo da Aba Oferecer Serviço -->
+                    <div id="oferecer-servico" class="tab-content">
+                        <form id="form-servicos">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <input name="nome" type="text" placeholder="Seu Nome" class="border p-2 rounded-lg" required>
+                                <input name="titulo" type="text" placeholder="Título do Serviço (Ex: Eletricista)" class="border p-2 rounded-lg" required>
+                            </div>
+                            <textarea name="descricao" rows="4" placeholder="Descreva o serviço que você oferece..." class="w-full border p-2 rounded-lg mt-4" required></textarea>
+                            <input name="contato" type="text" placeholder="Seu Contato (Telefone/WhatsApp)" class="w-full border p-2 rounded-lg mt-4" required>
+                            <button type="submit" class="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Enviar Serviço para Aprovação</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vendas Modal -->
+    <div id="vendasModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-auto">
+            <div class="p-6 h-[90vh] flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-2xl font-bold text-blue-800">Marketplace da Comunidade</h3>
+                    <button id="closeVendasModal" class="text-gray-500 hover:text-gray-700 text-3xl">&times;</button>
+                </div>
+                <div class="border-b border-gray-200 mb-4">
+                    <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                        <button class="tab-btn active" data-tab="ver-produtos">Ver Produtos</button>
+                        <button class="tab-btn" data-tab="anunciar-produto">Anunciar Produto</button>
+                    </nav>
+                </div>
+                <div class="flex-grow overflow-y-auto">
+                    <!-- Conteúdo da Aba Ver Produtos -->
+                    <div id="ver-produtos" class="tab-content active grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Os produtos do Firestore serão inseridos aqui -->
+                    </div>
+                    <!-- Conteúdo da Aba Anunciar Produto -->
+                    <div id="anunciar-produto" class="tab-content">
+                        <form id="form-vendas">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <input name="produto" type="text" placeholder="Nome do Produto" class="border p-2 rounded-lg" required>
+                                <input name="preco" type="text" placeholder="Preço (R$)" class="border p-2 rounded-lg" required>
+                            </div>
+                            <textarea name="descricao" rows="4" placeholder="Descrição do produto..." class="w-full border p-2 rounded-lg mt-4" required></textarea>
+                            <input name="contato" type="text" placeholder="Seu Contato (Telefone/WhatsApp)" class="w-full border p-2 rounded-lg mt-4" required>
+                            <p class="text-xs text-center text-gray-500 mt-4">Nota: Uma taxa de intermediação de R$1,00 será aplicada sobre a venda.</p>
+                            <button type="submit" class="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Enviar Anúncio para Aprovação</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login/Signup Modal -->
+    <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-2xl font-bold text-blue-800">Acesse sua Conta</h3>
+                    <button id="closeLoginModal" class="text-gray-500 hover:text-gray-700 text-3xl">&times;</button>
+                </div>
+                <div class="border-b border-gray-200 mb-4">
+                    <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                        <button class="tab-btn active" data-tab="login-tab">Entrar</button>
+                        <button class="tab-btn" data-tab="signup-tab">Criar Conta</button>
+                    </nav>
+                </div>
+                <!-- Aba de Login -->
+                <div id="login-tab" class="tab-content active">
+                    <form id="login-form">
+                        <input id="login-email" type="email" placeholder="Seu e-mail" class="w-full border p-2 rounded-lg mb-4" required>
+                        <input id="login-password" type="password" placeholder="Sua senha" class="w-full border p-2 rounded-lg mb-4" required>
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">Entrar</button>
+                    </form>
+                </div>
+                <!-- Aba de Criar Conta -->
+                <div id="signup-tab" class="tab-content">
+                    <form id="signup-form">
+                        <input id="signup-email" type="email" placeholder="Seu melhor e-mail" class="w-full border p-2 rounded-lg mb-4" required>
+                        <input id="signup-password" type="password" placeholder="Crie uma senha forte" class="w-full border p-2 rounded-lg mb-4" required>
+                        <button type="submit" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">Criar Conta Gratuita</button>
+                    </form>
+                </div>
+                <p id="auth-error" class="text-red-500 text-sm mt-4 text-center hidden"></p>
+            </div>
+        </div>
+    </div>
     
-        // Lógica do Menu Mobile (clonagem e eventos)
-        const desktopSidebar = document.getElementById('desktop-sidebar');
-        const mobileSidebarContent = document.getElementById('mobile-sidebar-content');
-        if (desktopSidebar && mobileSidebarContent) {
-            mobileSidebarContent.innerHTML = desktopSidebar.innerHTML;
-            mobileSidebarContent.querySelectorAll('button').forEach(clonedButton => {
-                clonedButton.addEventListener('click', () => {
-                    const originalButton = document.getElementById(clonedButton.id);
-                    if (originalButton) {
-                        originalButton.click();
+    <!-- MELHORIA: Modal do Menu Mobile -->
+    <div id="mobileMenuModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <!-- Painel do Menu -->
+        <div id="mobileMenuPanel" class="absolute top-0 right-0 h-full w-4/5 max-w-sm bg-white shadow-xl p-6 transform translate-x-full transition-transform duration-300 ease-in-out">
+            <!-- Header do Menu -->
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-blue-800">Menu de Ferramentas</h3>
+                <button id="closeMobileMenuBtn" class="p-2">
+                    <i class="fas fa-times text-2xl text-gray-600"></i>
+                </button>
+            </div>
+            <!-- Conteúdo do Menu -->
+            <nav id="mobile-menu-content" class="flex flex-col space-y-3">
+                <!-- Botões do Menu Mobile -->
+                <button id="nav-btn-advogado-ia" class="w-full text-left p-4 rounded-lg bg-slate-700 text-white hover:bg-slate-600 transition-colors flex items-center"><i class="fas fa-robot w-6 mr-3"></i>Advogado IA</button>
+                <button id="nav-btn-procon" class="w-full text-left p-4 rounded-lg bg-slate-700 text-white hover:bg-slate-600 transition-colors flex items-center"><i class="fas fa-shield-alt w-6 mr-3"></i>PROCON</button>
+                <button id="nav-btn-telefonia" class="w-full text-left p-4 rounded-lg bg-slate-700 text-white hover:bg-slate-600 transition-colors flex items-center"><i class="fas fa-mobile-alt w-6 mr-3"></i>Telefonia</button>
+                <button id="nav-btn-nome-sujo" class="w-full text-left p-4 rounded-lg bg-slate-700 text-white hover:bg-slate-600 transition-colors flex items-center"><i class="fas fa-file-invoice-dollar w-6 mr-3"></i>Nome Sujo</button>
+                <button id="nav-btn-advogado" class="w-full text-left p-4 rounded-lg bg-slate-700 text-white hover:bg-slate-600 transition-colors flex items-center"><i class="fas fa-user-tie w-6 mr-3"></i>Advogado</button>
+                
+                <hr class="my-4 border-gray-200">
+
+                <button id="nav-btn-golpes" class="w-full text-left p-4 rounded-lg bg-blue-800 text-white hover:bg-blue-700 transition-colors flex items-center"><i class="fas fa-user-secret w-6 mr-3"></i>Golpes Online</button>
+                <button id="nav-btn-reclame" class="w-full text-left p-4 rounded-lg bg-blue-800 text-white hover:bg-blue-700 transition-colors flex items-center"><i class="fas fa-comment-dots w-6 mr-3"></i>Reclame Aqui</button>
+                <button id="nav-btn-vagas" class="w-full text-left p-4 rounded-lg bg-blue-800 text-white hover:bg-blue-700 transition-colors flex items-center"><i class="fas fa-briefcase w-6 mr-3"></i>Vagas</button>
+                <button id="nav-btn-servicos" class="w-full text-left p-4 rounded-lg bg-blue-800 text-white hover:bg-blue-700 transition-colors flex items-center"><i class="fas fa-tools w-6 mr-3"></i>Serviços</button>
+                <button id="nav-btn-vendas" class="w-full text-left p-4 rounded-lg bg-blue-800 text-white hover:bg-blue-700 transition-colors flex items-center"><i class="fas fa-handshake w-6 mr-3"></i>Vendas</button>
+            </nav>
+        </div>
+    </div>
+
+
+    <script type="module">
+        // --- IMPORTS DO FIREBASE ---
+        import { initializeApp } from "[https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js)";
+        import { 
+            getAuth, 
+            createUserWithEmailAndPassword, 
+            signInWithEmailAndPassword, 
+            signOut, 
+            onAuthStateChanged 
+        } from "[https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js)";
+        import { 
+            getFirestore, 
+            doc, 
+            getDoc, 
+            addDoc, 
+            collection, 
+            query, 
+            onSnapshot,
+            Timestamp
+        } from "[https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js](https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js)";
+
+        // --- CONFIGURAÇÃO DO AMBIENTE ---
+        const backendUrl = '[https://iadoconsumidor.onrender.com](https://iadoconsumidor.onrender.com)';
+
+        // --- CONFIGURAÇÃO DO FIREBASE COM OS SEUS DADOS ---
+        const firebaseConfig = {
+          apiKey: "AIzaSyDMsufTXhP5Tq4IBJkb9N9SUpnrKYSoIlE",
+          authDomain: "ia-do-consumidor.firebaseapp.com",
+          projectId: "ia-do-consumidor",
+          storageBucket: "ia-do-consumidor.appspot.com",
+          messagingSenderId: "960487811924",
+          appId: "1:960487811924:web:59c6c4a8adfc6b3c47f6c1",
+          measurementId: "G-G7J8TJV4QE"
+        };
+
+        // Inicializa o Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // --- ESTADO DA APLICAÇÃO ---
+        let currentUser = null;
+        let currentEndpoint = '/chat';
+        let botName = 'IA do Consumidor';
+
+        // --- ELEMENTOS DO DOM ---
+        const authWall = document.getElementById('auth-wall');
+        const appContainer = document.getElementById('app-container');
+        const loginModal = document.getElementById('loginModal');
+        const mainLoginBtn = document.getElementById('mainLoginBtn');
+        const closeLoginModal = document.getElementById('closeLoginModal');
+        const authContainer = document.getElementById('auth-container');
+        const authError = document.getElementById('auth-error');
+        const upgradeContainer = document.getElementById('upgrade-container');
+        const chatMessages = document.getElementById('chat-messages');
+        const chatInput = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+        // Modais
+        const plansModal = document.getElementById('plansModal');
+        const advogadosModal = document.getElementById('advogadosModal');
+        const golpesModal = document.getElementById('golpesModal');
+        const reclameModal = document.getElementById('reclameModal');
+        const vagasModal = document.getElementById('vagasModal');
+        const servicosModal = document.getElementById('servicosModal');
+        const vendasModal = document.getElementById('vendasModal');
+        // Botões de Abrir
+        const plansBtn = document.getElementById('plansBtn');
+        const btnAdvogado = document.getElementById('btn-advogado');
+        const btnGolpes = document.getElementById('btn-golpes');
+        const btnReclame = document.getElementById('btn-reclame');
+        const btnVagas = document.getElementById('btn-vagas');
+        const btnServicos = document.getElementById('btn-servicos');
+        const btnVendas = document.getElementById('btn-vendas');
+        // Botões de Fechar
+        const closePlansModal = document.getElementById('closePlansModal');
+        const closeAdvogadosModal = document.getElementById('closeAdvogadosModal');
+        const closeGolpesModal = document.getElementById('closeGolpesModal');
+        const closeReclameModal = document.getElementById('closeReclameModal');
+        const closeVagasModal = document.getElementById('closeVagasModal');
+        const closeServicosModal = document.getElementById('closeServicosModal');
+        const closeVendasModal = document.getElementById('closeVendasModal');
+        // Golpômetro
+        const golpometroFileInput = document.getElementById('golpometro-file-input');
+        const golpometroUploadBtn = document.getElementById('golpometro-upload-btn');
+        const golpometroPreviewContainer = document.getElementById('golpometro-preview-container');
+        const golpometroPreviewImg = document.getElementById('golpometro-preview-img');
+        const golpometroAnaliseBtn = document.getElementById('golpometro-analise-btn');
+        const golpometroResult = document.getElementById('golpometro-result');
+        // Menu Mobile
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const mobileMenuModal = document.getElementById('mobileMenuModal');
+        const closeMobileMenuBtn = document.getElementById('closeMobileMenuBtn');
+
+        // --- LÓGICA DE AUTENTICAÇÃO ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const docRef = doc(db, "users", user.uid);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    currentUser = { ...user, ...docSnap.data() };
+                } else {
+                    console.error("Perfil do utilizador não encontrado no Firestore! Criando um perfil de fallback.");
+                    await fetch(`${backendUrl}/create-user-record`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ uid: user.uid, email: user.email })
+                    });
+                    currentUser = { ...user, cargo: 'gratuito', email: user.email }; 
+                }
+                
+                authWall.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                authContainer.innerHTML = `<button id="logoutBtn" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">Sair</button>`;
+                document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth).then(() => window.location.reload()));
+                loginModal.classList.add('hidden');
+
+                // LÓGICA DO BOTÃO DE UPGRADE (Perfect Pay)
+                if (currentUser.cargo === 'gratuito' && currentUser.email) {
+                    const checkoutLink = "[https://go.perfectpay.com.br/PPU38CPS0M8](https://go.perfectpay.com.br/PPU38CPS0M8)"; 
+                    const linkComEmail = `${checkoutLink}?email=${encodeURIComponent(currentUser.email)}`;
+                    upgradeContainer.innerHTML = `<a href="${linkComEmail}" target="_blank" id="linkUpgrade" class="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 font-bold px-3 py-2 rounded-lg text-sm transition-colors flex items-center"><i class="fas fa-star mr-2"></i>Fazer Upgrade</a>`;
+                } else {
+                    upgradeContainer.innerHTML = '';
+                }
+
+            } else {
+                currentUser = null;
+                authWall.classList.remove('hidden');
+                appContainer.classList.add('hidden');
+                authContainer.innerHTML = `<button id="headerLoginBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg text-sm font-medium transition-colors">Entrar</button>`;
+                document.getElementById('headerLoginBtn').addEventListener('click', () => loginModal.classList.remove('hidden'));
+            }
+        });
+        
+        mainLoginBtn.addEventListener('click', () => loginModal.classList.remove('hidden'));
+        closeLoginModal.addEventListener('click', () => loginModal.classList.add('hidden'));
+        loginModal.addEventListener('click', (e) => { if (e.target === loginModal) loginModal.classList.add('hidden'); });
+
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            authError.classList.add('hidden');
+            signInWithEmailAndPassword(auth, email, password)
+                .catch(error => {
+                    authError.textContent = "E-mail ou senha inválidos.";
+                    authError.classList.remove('hidden');
+                });
+        });
+
+        document.getElementById('signup-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            authError.classList.add('hidden');
+            
+            createUserWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    const user = userCredential.user;
+                    return fetch(`${backendUrl}/create-user-record`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ uid: user.uid, email: user.email })
+                    });
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => { throw new Error(err.error || 'Falha ao criar perfil no backend.') });
                     }
-                    mobileMenuModal.classList.add('hidden');
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Resposta do backend:", data.message);
+                })
+                .catch(error => {
+                    console.error("Erro no processo de criação de conta:", error);
+                    let message = error.message || "Erro ao criar conta. Verifique o e-mail ou tente uma senha mais forte.";
+                    if (error.code === 'auth/weak-password') {
+                        message = 'A senha é muito fraca. Por favor, use pelo menos 6 caracteres.';
+                    } else if (error.code === 'auth/email-already-in-use') {
+                        message = 'Este e-mail já está sendo utilizado em outra conta.';
+                    } else if (error.code === 'auth/invalid-api-key' || error.code === 'auth/api-key-not-valid.-please-pass-a-valid-api-key.') {
+                        message = 'Chave de API do Firebase inválida. Verifique a configuração no seu código.';
+                    } else if (error.name === 'TypeError') {
+                        message = 'Não foi possível conectar ao servidor. Verifique se o backend está rodando e a URL está correta.';
+                    }
+                    authError.textContent = message;
+                    authError.classList.remove('hidden');
+                });
+        });
+
+        // --- LÓGICA DO MENU MOBILE ---
+        function closeMenu() {
+            mobileMenuModal.classList.remove('open');
+            setTimeout(() => {
+                mobileMenuModal.classList.add('hidden');
+            }, 300); // Espera a transição terminar
+        }
+        mobileMenuBtn.addEventListener('click', () => {
+            mobileMenuModal.classList.remove('hidden');
+            setTimeout(() => mobileMenuModal.classList.add('open'), 10);
+        });
+        closeMobileMenuBtn.addEventListener('click', closeMenu);
+        mobileMenuModal.addEventListener('click', (e) => {
+            if (e.target === mobileMenuModal) {
+                closeMenu();
+            }
+        });
+
+
+        // --- LÓGICA DOS MODAIS ---
+        function setupModal(openBtn, modal, closeBtn) {
+            if(openBtn) openBtn.addEventListener('click', () => modal.classList.remove('hidden'));
+            if(closeBtn) closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
+            if(modal) modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
+        }
+        setupModal(plansBtn, plansModal, closePlansModal);
+        setupModal(btnAdvogado, advogadosModal, closeAdvogadosModal);
+        setupModal(btnGolpes, golpesModal, closeGolpesModal);
+        setupModal(btnReclame, reclameModal, closeReclameModal);
+        setupModal(btnVagas, vagasModal, closeVagasModal);
+        setupModal(btnServicos, servicosModal, closeServicosModal);
+        setupModal(btnVendas, vendasModal, closeVendasModal);
+
+        // --- LÓGICA DAS ABAS (TABS) ---
+        function setupTabs(modalElement) {
+            if (!modalElement) return;
+            const tabs = modalElement.querySelectorAll('.tab-btn');
+            const contents = modalElement.querySelectorAll('.tab-content');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(item => item.classList.remove('active'));
+                    tab.classList.add('active');
+                    const target = tab.getAttribute('data-tab');
+                    contents.forEach(content => {
+                        if (content.id === target) {
+                            content.classList.add('active');
+                        } else {
+                            content.classList.remove('active');
+                        }
+                    });
                 });
             });
         }
+        
+        setupTabs(loginModal);
+        setupTabs(reclameModal);
+        setupTabs(vagasModal);
+        setupTabs(servicosModal);
+        setupTabs(vendasModal);
+
+        // --- FUNÇÕES DO CHAT ---
+        async function handleSendMessage(messageText, endpoint) {
+            if (!messageText || messageText.trim() === '') return;
+            addMessage(messageText, 'user');
+            chatInput.value = '';
+            showTypingIndicator();
+            try {
+                const response = await fetch(`${backendUrl}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: messageText }),
+                });
+                removeTypingIndicator();
+                if (!response.ok) throw new Error('O servidor respondeu com um erro.');
+                const data = await response.json();
+                addMessage(data.resposta, 'bot');
+            } catch (error) {
+                console.error('Erro ao conectar com o backend:', error);
+                removeTypingIndicator();
+                addMessage('Desculpe, não consegui me conectar ao servidor.', 'bot');
+            }
+        }
+        
+        function addMessage(message, sender) {
+            const messageWrapper = document.createElement('div');
+            messageWrapper.classList.add('chat-message-animation');
+
+            if (sender === 'user') {
+                messageWrapper.classList.add('flex', 'items-start', 'justify-end');
+                messageWrapper.innerHTML = `<div class="bg-gray-200 p-3 rounded-lg max-w-lg"><p class="text-gray-800">${message}</p></div>`;
+            } else {
+                messageWrapper.classList.add('flex', 'items-start');
+                messageWrapper.innerHTML = `<div class="bg-blue-100 p-3 rounded-lg max-w-lg"><div class="flex items-center mb-2"><div class="bg-blue-600 text-white w-6 h-6 flex items-center justify-center rounded-full mr-2"><i class="fas fa-robot text-xs"></i></div><span class="font-bold text-blue-800">${botName}</span></div><p class="text-gray-800">${message}</p></div>`;
+            }
+            chatMessages.appendChild(messageWrapper);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            const typingIndicator = document.createElement('div');
+            typingIndicator.id = 'typing-indicator';
+            typingIndicator.classList.add('chat-message-animation', 'flex', 'items-start');
+            typingIndicator.innerHTML = `<div class="bg-blue-100 p-3 rounded-lg max-w-lg"><div class="flex items-center"><div class="bg-blue-600 text-white w-6 h-6 flex items-center justify-center rounded-full mr-3"><i class="fas fa-robot text-xs"></i></div><span class="font-bold text-blue-800 mr-2">${botName}</span><div class="dot-flashing"></div></div></div>`;
+            chatMessages.appendChild(typingIndicator);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function removeTypingIndicator() {
+            const typingIndicator = document.getElementById('typing-indicator');
+            if (typingIndicator) typingIndicator.remove();
+        }
+        
+        function activateChatMode(newBotName, welcomeMessage, endpoint) {
+            if (!currentUser) {
+                loginModal.classList.remove('hidden');
+                return;
+            }
+            const premiumFeatures = ['/chat-advogado', '/chat-procon', '/chat-telefonia', '/chat-nomesujo'];
+            if (premiumFeatures.includes(endpoint) && currentUser.cargo === 'gratuito') {
+                plansModal.classList.remove('hidden');
+                return;
+            }
+
+            botName = newBotName;
+            currentEndpoint = endpoint;
+            chatMessages.innerHTML = '';
+            addMessage(welcomeMessage, 'bot');
+        }
+
+        // --- LÓGICA DO GOLPÔMETRO ---
+        golpometroUploadBtn.addEventListener('click', () => {
+            golpometroFileInput.click();
+        });
+
+        golpometroFileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    golpometroPreviewImg.src = e.target.result;
+                    golpometroPreviewContainer.classList.remove('hidden');
+                    golpometroAnaliseBtn.disabled = false;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        golpometroAnaliseBtn.addEventListener('click', async () => {
+            const file = golpometroFileInput.files[0];
+            if (!file) {
+                golpometroResult.innerHTML = '<p class="text-red-500">Por favor, escolha um print para análise.</p>';
+                golpometroResult.classList.remove('hidden');
+                return;
+            }
+            
+            golpometroResult.classList.remove('hidden');
+            golpometroResult.innerHTML = '<p>Analisando imagem...</p>';
+            golpometroAnaliseBtn.disabled = true;
+
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onloadend = async () => {
+                const base64Image = reader.result.split(',')[1];
+
+                try {
+                    const response = await fetch(`${backendUrl}/chat-golpometro`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ image: base64Image }),
+                    });
+                    if (!response.ok) throw new Error('Erro no servidor');
+                    const data = await response.json();
+                    const cleanedResponse = data.resposta.replace(/```html|```/g, '').trim();
+                    golpometroResult.innerHTML = cleanedResponse;
+                } catch (error) {
+                    golpometroResult.innerHTML = '<p class="text-red-500">Não foi possível conectar à IA de análise. Tente novamente.</p>';
+                } finally {
+                    golpometroAnaliseBtn.disabled = false;
+                }
+            };
+        });
+
+        // --- LÓGICA DOS FORMULÁRIOS CONECTADA AO FIRESTORE ---
+        async function setupForm(formId, collectionName) {
+            const form = document.getElementById(formId);
+            if(form) {
+                form.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    if (!currentUser) {
+                        alert("Você precisa estar logado para postar.");
+                        return;
+                    }
+                    const formData = new FormData(form);
+                    const data = Object.fromEntries(formData.entries());
+                    
+                    data.userId = currentUser.uid;
+                    data.userEmail = currentUser.email;
+                    data.criadoEm = Timestamp.now();
+
+                    const submitButton = form.querySelector('button[type="submit"]');
+                    submitButton.disabled = true;
+                    submitButton.innerHTML = 'Enviando...';
+
+                    try {
+                        await addDoc(collection(db, collectionName), data);
+                        
+                        const originalText = submitButton.textContent;
+                        submitButton.innerHTML = `<i class="fas fa-check-circle mr-2"></i> Enviado!`;
+                        submitButton.classList.add('bg-green-500', 'hover:bg-green-600');
+                        form.reset();
+                        setTimeout(() => {
+                            submitButton.innerHTML = originalText;
+                            submitButton.classList.remove('bg-green-500', 'hover:bg-green-600');
+                            submitButton.disabled = false;
+                        }, 3000);
+
+                    } catch (error) {
+                        console.error(`Erro ao salvar em ${collectionName}:`, error);
+                        alert(`Ocorreu um erro ao enviar. Tente novamente.`);
+                        submitButton.disabled = false;
+                        submitButton.innerHTML = "Tentar Novamente";
+                    }
+                });
+            }
+        }
+        
+        // --- FUNÇÃO PARA CARREGAR DADOS DA COMUNIDADE DO FIRESTORE ---
+        function loadCommunityData(collectionName, containerId, templateFunction) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            const q = query(collection(db, collectionName));
+            onSnapshot(q, (querySnapshot) => {
+                container.innerHTML = ''; 
+                if (querySnapshot.empty) {
+                    container.innerHTML = '<p class="text-gray-500 text-center col-span-full">Nenhum item encontrado.</p>';
+                    return;
+                }
+                querySnapshot.forEach((doc) => {
+                    const newEntry = document.createElement('div');
+                    if (container.classList.contains('grid')) {
+                       newEntry.className = 'contents'; 
+                    }
+                    newEntry.innerHTML = templateFunction(doc.data(), doc.id);
+                    container.prepend(newEntry);
+                });
+            });
+        }
+
+        // Templates para os murais
+        const reclameTemplate = (data, id) => `<div class="border rounded-lg p-4" data-id="${id}"><h4 class="font-bold text-lg">${data.titulo} - ${data.empresa}</h4><p class="text-sm text-gray-600 mt-2">"${data.descricao}"</p><p class="text-xs text-gray-400 mt-2">Postado por: ${data.userEmail.split('@')[0]} - ${data.criadoEm.toDate().toLocaleDateString('pt-BR')}</p></div>`;
+        const vagaTemplate = (data, id) => `<div class="border rounded-lg p-4 flex items-start space-x-4" data-id="${id}"><img src="https://placehold.co/80x80/3B82F6/FFFFFF?text=${data.empresa.substring(0,2).toUpperCase()}" alt="Logo" class="w-20 h-20 rounded-lg object-cover"><div><h4 class="font-bold text-lg">${data.titulo}</h4><p class="text-sm font-semibold text-blue-600">${data.empresa}</p><p class="text-sm text-gray-600 mt-1"><i class="fas fa-map-marker-alt mr-1"></i>${data.local}</p><p class="text-sm text-gray-600 mt-1"><i class="fas fa-dollar-sign mr-1"></i>${data.salario}</p><button class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mt-2">Ver Detalhes</button></div></div>`;
+        const servicoTemplate = (data, id) => `<div class="border rounded-lg p-4" data-id="${id}"><h4 class="font-bold text-lg">${data.titulo}</h4><p class="text-sm text-gray-600 mt-2">"${data.descricao}"</p><p class="text-sm font-semibold text-blue-600 mt-2">Contato: ${data.contato}</p><p class="text-xs text-gray-400 mt-2">Oferecido por: ${data.nome}</p></div>`;
+        const vendaTemplate = (data, id) => `<div class="border rounded-lg" data-id="${id}"><img src="https://placehold.co/300x200/E2E8F0/4A5568?text=Produto" alt="Foto" class="w-full h-32 object-cover rounded-t-lg"><div class="p-4"><h4 class="font-bold">${data.produto}</h4><p class="text-lg font-semibold text-blue-600">R$ ${data.preco}</p><p class="text-xs text-gray-500">Vendedor: ${data.userEmail.split('@')[0]}</p></div></div>`;
+
+        // INICIALIZAÇÃO DOS FORMULÁRIOS E MURAIS
+        setupForm('form-reclame', 'reclamacoes');
+        setupForm('form-vagas', 'vagas');
+        setupForm('form-servicos', 'servicos');
+        setupForm('form-vendas', 'vendas');
+
+        loadCommunityData('reclamacoes', 'ver-reclamacoes', reclameTemplate);
+        loadCommunityData('vagas', 'ver-vagas', vagaTemplate);
+        loadCommunityData('servicos', 'ver-servicos', servicoTemplate);
+        loadCommunityData('vendas', 'ver-produtos', vendaTemplate);
+
+
+        // --- EVENT LISTENERS ---
+        sendBtn.addEventListener('click', () => handleSendMessage(chatInput.value, currentEndpoint));
+        chatInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') handleSendMessage(chatInput.value, currentEndpoint);
+        });
+
+        // --- EVENT LISTENERS PARA BOTÕES (DESKTOP E MOBILE) ---
+        function setupDesktopAndMobileListeners(desktopId, mobileId, action) {
+            const desktopBtn = document.getElementById(desktopId);
+            const mobileNavBtn = document.getElementById(mobileId);
+            
+            const combinedAction = () => {
+                action();
+                closeMenu(); // Fecha o menu mobile após o clique
+            };
+
+            if (desktopBtn) desktopBtn.addEventListener('click', action);
+            if (mobileNavBtn) mobileNavBtn.addEventListener('click', combinedAction);
+        }
+
+        // Especialistas
+        setupDesktopAndMobileListeners('btn-advogado-ia', 'nav-btn-advogado-ia', () => activateChatMode('Advogado IA', 'Modo Advogado IA ativado. Por favor, descreva seu caso para que eu possa fornecer as orientações.', '/chat-advogado'));
+        setupDesktopAndMobileListeners('btn-procon', 'nav-btn-procon', () => activateChatMode('Especialista PROCON', 'Modo PROCON ativado. Qual seu problema? Vou te guiar sobre como registrar sua reclamação.', '/chat-procon'));
+        setupDesktopAndMobileListeners('btn-telefonia', 'nav-btn-telefonia', () => activateChatMode('Consultor de Telefonia', 'Modo Telefonia ativado. Me diga qual o problema com sua operadora (fatura, sinal, serviço) para eu te ajudar.', '/chat-telefonia'));
+        setupDesktopAndMobileListeners('btn-nome-sujo', 'nav-btn-nome-sujo', () => activateChatMode('Assessor Financeiro', 'Modo Nome Sujo ativado. Posso te ajudar a consultar seu CPF, entender dívidas e encontrar o caminho para limpar seu nome.', '/chat-nomesujo'));
+        setupDesktopAndMobileListeners('btn-advogado', 'nav-btn-advogado', () => advogadosModal.classList.remove('hidden'));
+
+        // Comunidade
+        setupDesktopAndMobileListeners('btn-golpes', 'nav-btn-golpes', () => golpesModal.classList.remove('hidden'));
+        setupDesktopAndMobileListeners('btn-reclame', 'nav-btn-reclame', () => reclameModal.classList.remove('hidden'));
+        setupDesktopAndMobileListeners('btn-vagas', 'nav-btn-vagas', () => vagasModal.classList.remove('hidden'));
+        setupDesktopAndMobileListeners('btn-servicos', 'nav-btn-servicos', () => servicosModal.classList.remove('hidden'));
+        setupDesktopAndMobileListeners('btn-vendas', 'nav-btn-vendas', () => vendasModal.classList.remove('hidden'));
+
     </script>
 
 </body>
